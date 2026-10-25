@@ -9,6 +9,7 @@ import { duration, matchSummary } from './match-summary';
 import type { GameState, PlayerId, RoomState } from '../shared/types';
 
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
+const basePath = import.meta.env.BASE_URL;
 const cooldown = (seconds: number) => `${Number(seconds.toFixed(2))}s`;
 const descriptions: Record<string, string> = {
   passive: `Attacks against enemies below half health deal 10% maximum HP as bonus magic damage. ${cooldown(PASSIVE.cooldown)} per-target cooldown.`,
@@ -22,7 +23,7 @@ const descriptions: Record<string, string> = {
 $('#app').innerHTML = `
   <main class="shell">
     <header class="masthead">
-      <a class="brand" href="/" aria-label="Zed Duel home">ZED / DUEL</a>
+      <a class="brand" href="${basePath}" aria-label="Zed Duel home">ZED / DUEL</a>
       <div class="header-actions"><span id="connection" class="connection"><i></i>Connecting</span><span id="latency">— ms</span><button id="settings" class="icon-button" aria-label="Settings and controls">${icon('settings')}</button></div>
     </header>
     <section class="match" aria-label="Zed duel">
@@ -116,7 +117,7 @@ function renderRoom(room: RoomState) {
   $('#room-label').textContent = practice ? 'SOLO PRACTICE' : `ROOM ${room.code}`;
   $('#copy-room').hidden = practice;
   $('#reset-practice').hidden = !practice;
-  if (practice && location.search !== '?practice=1') history.replaceState({}, '', '?practice=1');
+  if (practice && location.search !== '?practice=1') history.replaceState({}, '', `${basePath}?practice=1`);
   $('#leave').hidden = false;
   $('#killcam-bar').hidden = !renderer.killcam.active;
   if (renderer.killcam.active) {
@@ -212,17 +213,22 @@ connection.addEventListener('connection', (event) => {
     );
   }
 });
+connection.addEventListener('connecting', () =>
+  overlay(
+    '<div class="lobby-card"><h2>Connecting…</h2><button id="leave" class="secondary">Cancel</button></div>',
+  ),
+);
 connection.addEventListener('state', (event) => renderRoom((event as CustomEvent<RoomState>).detail));
 connection.addEventListener('joined', (event) => {
   const { code } = (event as CustomEvent<{ code: string }>).detail;
-  history.replaceState({}, '', `?room=${code}`);
+  history.replaceState({}, '', `${basePath}?room=${code}`);
 });
 connection.addEventListener('error', (event) => toast((event as CustomEvent<string>).detail));
 connection.addEventListener('latency', () => {
   $('#latency').textContent = `${connection.latency} ms`;
 });
 connection.addEventListener('left', () => {
-  history.replaceState({}, '', '/');
+  history.replaceState({}, '', basePath);
   invite = '';
   solo = false;
   renderer.clear();

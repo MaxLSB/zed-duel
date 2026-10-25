@@ -1,6 +1,10 @@
 # Zed / Duel
 
-A minimalist, two-player browser duel with level-18 Zed, the full champion kit and Flash. Separate TypeScript modules handle combat, rooms, input, rendering and UI. The server owns the match; clients send input commands.
+A minimalist, two-player browser duel with level-18 Zed, the full champion kit and Flash. Separate TypeScript modules handle combat, rooms, input, rendering and UI. The match host owns the simulation; guests send input commands. The GitHub Pages build hosts matches in a player’s browser, while local/LAN mode retains the Node server.
+
+## Play on GitHub Pages
+
+Deploy this repository’s project page at **https://maxlsb.github.io/zed-duel/** without changing the portfolio. Players create a duel and share an invite; PeerJS connects their browsers and one player hosts the match. No hosted Node game server is required. See [Pages setup and hosting details](docs/github-pages.md).
 
 ## Run
 
@@ -79,7 +83,7 @@ npm run test:browser
 
 For an installed Chrome browser, use `PLAYWRIGHT_CHANNEL=chrome npm run test:browser`. The browser tests start their own server on port 3100 and save screenshots in `test-results/`.
 
-The draft was checked with 46 combat/protocol/replay/transport tests and twelve Playwright scenarios using independent Chrome sessions. These cover joining, readiness, room capacity, stale commands, damage synchronization, disconnects, rematch resets, key rebinding, attack-move, stopping right-click movement with Control held and ultimate follow-up attacks, killcam playback, match statistics, narrow layouts, and solo practice. A real second device and a public internet deployment have not been tested.
+Validation includes 50 combat/protocol/replay/transport/session tests, twelve LAN browser scenarios and three Pages browser scenarios using independent Chrome contexts. These cover joining, readiness, room capacity, stale commands, damage synchronization, disconnects, rematch resets, key rebinding, attack-move, stopping right-click movement with Control held and ultimate follow-up attacks, killcam playback, match statistics, narrow layouts, and solo practice. The Pages deployment adds tests for browser-hosted rooms and real WebRTC between browser contexts. A real second device on a different internet connection has not been tested.
 
 ## Internet hosting
 
@@ -90,14 +94,13 @@ PORT=3000 npm start
 
 Deploy the repository to a Node-capable host that supports long-lived WebSocket connections. The same process serves `dist/` and `/ws`. Use one server instance initially; a load-balanced deployment needs shared room ownership or sticky routing. For HTTPS, forward WebSocket upgrades through the reverse proxy and preserve the original `Host` header. `/health` is the health-check endpoint.
 
-This draft is a local/LAN implementation with an internet-capable transport. It has not been published to Sites: its persistent Node room server needs a compatible hosting adapter before that deployment path can be used.
+This Node deployment is an alternative to the browser-hosted GitHub Pages build. See [Pages setup](docs/github-pages.md) for the static deployment workflow.
 
 ## Draft limitations
 
 - Original geometric visuals; no League assets, audio or animation rig.
 - Researched balance values, with documented source discrepancies and timing approximations. Exact League parity has not been established.
 - Server-authoritative movement with interpolation; client prediction, reconciliation and lag compensation are follow-up work.
-- Out-of-range targeted casts are rejected rather than queued with automatic approach.
 - Rejoining after a lost connection starts fresh; no reconnect grace period or spectators.
 - Optional Google Fonts fall back to local system fonts offline.
 
