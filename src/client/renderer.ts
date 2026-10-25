@@ -1,4 +1,8 @@
-import { ARENA, SPELLS, STATS } from '../shared/balance';
+import { championStats, championSpells } from '../shared/champions';
+import { SINGED_SPELLS } from '../shared/singed-balance';
+import { bounded, towards } from '../shared/geometry';
+import { SingedEffects } from './singed-effects';
+import { ARENA, SPELLS } from '../shared/balance';
 import { clamp, distance, lerp } from '../shared/geometry';
 import type { GameState, PlayerId, PlayerState, Vec } from '../shared/types';
 import type { Controls } from './input';
@@ -10,6 +14,7 @@ const COLORS = ['#90c7b6', '#e1a087'];
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private ultimateEffects: UltimateEffects;
+  private singedEffects: SingedEffects;
   private current: GameState | null = null;
   private previous: GameState | null = null;
   private received = 0;
@@ -27,6 +32,7 @@ export class Renderer {
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
     this.ultimateEffects = new UltimateEffects(this.ctx);
+    this.singedEffects = new SingedEffects(this.ctx);
     new ResizeObserver(() => this.resize()).observe(canvas);
     this.resize();
     requestAnimationFrame(this.frame);
@@ -110,6 +116,7 @@ export class Renderer {
             : s.phase === 'finished'
               ? Math.min(1, (performance.now() - this.finishedAt) / 1000)
               : 0);
+      this.singedEffects.zones(s, now, COLORS);
       for (const p of s.players)
         if (p.ultimate) this.ultimateEffects.approach(p, s.players[p.ultimate.target], now);
       const alpha = playback?.alpha ?? clamp((performance.now() - this.received) / 50, 0, 1);
@@ -124,13 +131,18 @@ export class Renderer {
       if (!playback && s.phase === 'active' && this.controls?.attackMovePending) {
         c.strokeStyle = COLORS[this.player] + 'b0';
         c.lineWidth = 2;
-        this.circle(self.pos, STATS.attackRange + STATS.radius);
+        this.circle(self.pos, championStats(self.champion).attackRange + championStats(self.champion).radius);
       }
       if (!playback && s.phase === 'active' && this.controls?.hovered) {
         c.strokeStyle = COLORS[this.player] + '50';
         c.lineWidth = 2;
         c.setLineDash([9, 9]);
-        this.circle(self.pos, SPELLS[this.controls.hovered].range);
+        this.circle(self.pos, championSpells(self.champion)[this.controls.hovered].range);
+        if (self.champion === 'singed' && this.controls.hovered === 'w')
+          this.circle(
+            bounded(towards(self.pos, this.controls.cursor, SINGED_SPELLS.w.range)),
+            SINGED_SPELLS.w.radius,
+          );
         c.setLineDash([]);
       }
       for (const p of s.players) {
@@ -264,12 +276,25 @@ export class Renderer {
     c.strokeStyle = color + (p.id === this.player ? 'b0' : '45');
     c.lineWidth = 2;
     this.circle(pos, 75);
-    this.ninja(pos, p.facing, color, p.hp <= 0 ? 0.2 : 1);
+    const flight = p.airborne;
+    const height = flight
+      ? Math.sin(clamp((now - flight.started) / (flight.ends - flight.started), 0, 1) * Math.PI) * 100
+      : 0;
+    const body = { x: pos.x, y: pos.y - height };
+    if (p.singed) this.singedEffects.body(p, body, now, color);
+    else this.ninja(body, p.facing, color, p.hp <= 0 ? 0.2 : 1);
+    if (p.rootUntil > now) {
+      c.strokeStyle = '#c6df74';
+      c.lineWidth = 4;
+      c.setLineDash([10, 8]);
+      this.circle(pos, 90);
+      c.setLineDash([]);
+    }
     if (p.mark) this.ultimateEffects.mark(pos, p.mark.expires, now);
     c.fillStyle = '#090e10';
     c.fillRect(pos.x - 78, pos.y - 111, 156, 9);
     c.fillStyle = color;
-    c.fillRect(pos.x - 78, pos.y - 111, (156 * p.hp) / STATS.hp, 9);
+    c.fillRect(pos.x - 78, pos.y - 111, (156 * p.hp) / championStats(p.champion).hp, 9);
   }
 
   private ninja(pos: Vec, facing: number, color: string, opacity: number) {

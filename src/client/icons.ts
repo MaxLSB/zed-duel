@@ -1,4 +1,12 @@
 export const icons: Record<string, string> = {
+  'singed-passive': '<path d="M3 7h11m-9 5h15M3 17h11m2-13 4 3-4 3m1 4 4 3-4 3"/>',
+  'singed-q':
+    '<path d="M8 18a4 4 0 1 1-3-7 5 5 0 0 1 9-5 4 4 0 1 1 5 7 4 4 0 0 1-4 6"/><circle cx="10" cy="11" r="1"/><path d="m9 16 5-2"/>',
+  'singed-w':
+    '<ellipse cx="12" cy="17" rx="9" ry="4"/><path d="m10 3 4 0-1 5 3 4-8 0 3-4zM5 16l3 1m8-1 3 1"/>',
+  'singed-e': '<path d="M4 19V9a6 6 0 0 1 12 0v4m-4-4 4 4 4-4"/><circle cx="5" cy="18" r="2"/>',
+  'singed-r':
+    '<path d="M9 2h6m-5 0v7l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V2M8 14h8"/><path d="m11 16 2 2m1-7 1 1"/>',
   passive: '<path d="m8 5 4 5 4-5 3 9-7 6-7-6z"/><path d="m8 13 3 1m5-1-3 1"/>',
   q: '<path d="m12 2 3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/><circle cx="12" cy="12" r="2"/>',
   w: '<path d="m9 3 5 5-2 5 3 7H3l3-7-2-5z"/><path d="m16 3 4 5-2 5 3 7h-4"/>',

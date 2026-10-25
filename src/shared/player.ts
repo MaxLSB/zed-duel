@@ -1,11 +1,13 @@
-import { SPELL_KEYS, STATS } from './balance';
+import { SPELL_KEYS } from './balance';
 import type { SpellKey } from './balance';
 import type { PlayerId, PlayerState } from './types';
+import type { ChampionId } from './types';
+import { championStats } from './champions';
 
 export class Player implements PlayerState {
   pos;
   facing;
-  hp: number = STATS.hp;
+  hp: number;
   stats: PlayerState['stats'] = { shurikensThrown: 0, shurikensHit: 0, attacksHit: 0, damageDealt: 0 };
   destination: PlayerState['destination'] = null;
   attackMove: PlayerState['attackMove'] = null;
@@ -21,8 +23,19 @@ export class Player implements PlayerState {
   cooldowns = Object.fromEntries(SPELL_KEYS.map((key) => [key, 0])) as Record<SpellKey, number>;
   shadows: PlayerState['shadows'] = [];
   mark: PlayerState['mark'] = null;
+  singed: PlayerState['singed'];
+  poison: PlayerState['poison'] = null;
+  grievousUntil = 0;
+  rootUntil = 0;
+  airborne: PlayerState['airborne'] = null;
 
-  constructor(public id: PlayerId) {
+  constructor(
+    public id: PlayerId,
+    public champion: ChampionId = 'zed',
+  ) {
+    this.hp = championStats(champion).hp;
+    this.singed =
+      champion === 'singed' ? { poisonOn: false, cloudAt: 0, slipstreamUntil: 0, insanityUntil: 0 } : null;
     this.pos = { x: id === 0 ? 500 : 1900, y: 700 };
     this.facing = id === 0 ? 0 : Math.PI;
   }

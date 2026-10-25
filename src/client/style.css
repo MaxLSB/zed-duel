@@ -776,3 +776,33 @@ dialog p {
 .match-stats td:nth-child(2) {
   color: #90c7b6;
 }
+
+.champion-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 16px;
+  color: #a6b6ad;
+  font-size: 13px;
+}
+.champion-picker select {
+  color: #e3e9e5;
+  background: #1d2928;
+  border: 1px solid #526b60;
+  border-radius: 6px;
+  font: inherit;
+  padding: 8px 32px 8px 12px;
+}
+.ability-active {
+  border-color: #bad879;
+  background: #273827;
+}
+.ability-active .ability-icon {
+  color: #c4e68a;
+}
+.player-sub {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}

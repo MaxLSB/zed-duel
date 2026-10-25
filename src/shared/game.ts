@@ -1,10 +1,13 @@
+import { championStats, potionBonus } from './champions';
+import { SINGED_PASSIVE, SINGED_SPELLS } from './singed-balance';
+import { SingedKit } from './singed';
 import { PASSIVE, SPELLS, STATS, STEP } from './balance';
 import { bounded, direction, distance, segmentDistance, towards } from './geometry';
 import { Player } from './player';
 import { SpellBuffer, SPELL_BUFFER_WINDOW } from './spell-buffer';
 import type { CastInput } from './spell-buffer';
 import type { SpellKey } from './balance';
-import type { Effect, GameState, Input, PlayerId, PlayerState, Shadow, Vec } from './types';
+import type { ChampionId, Effect, GameState, Input, PlayerId, PlayerState, Shadow, Vec } from './types';
 
 interface CastGroup {
   hits: Set<number>;
@@ -17,21 +20,50 @@ interface Scheduled {
 }
 
 export class Game {
-  state: GameState = this.initialState();
+  state: GameState;
   private scheduled: Scheduled[] = [];
   private groups = new Map<number, CastGroup>();
   private serial = 0;
   private spellBuffer = new SpellBuffer();
-  private ultimateTargets = new Map<PlayerId, PlayerId>();
+  private approachTargets = new Map<PlayerId, PlayerId>();
 
-  constructor(private readonly stationary: PlayerId | null = null) {}
+  private singed = new SingedKit({
+    state: () => this.state,
+    schedule: (delay, run) => this.schedule(delay, run),
+    damage: (owner, target, raw, type) => this.damage(owner, target, raw, type),
+    effect: (kind, pos, owner) => this.effect(kind, pos, owner),
+    interrupt: (p) => {
+      this.spellBuffer.clear(p.id);
+      this.cancelApproach(p);
+      p.destination = null;
+      p.attackMove = null;
+      p.attacking = false;
+      p.windupUntil = 0;
+      p.castUntil = this.state.time;
+    },
+  });
+
+  constructor(
+    private readonly stationary: PlayerId | null = null,
+    private champions: [ChampionId, ChampionId] = ['zed', 'zed'],
+  ) {
+    this.state = this.initialState();
+  }
+
+  selectChampion(id: PlayerId, champion: ChampionId) {
+    if (this.state.phase !== 'waiting') return false;
+    this.champions[id] = champion;
+    this.state.players[id] = new Player(id, champion);
+    return true;
+  }
 
   private initialState(): GameState {
     return {
       time: 0,
       phase: 'waiting',
       countdown: 0,
-      players: [new Player(0), new Player(1)],
+      players: [new Player(0, this.champions[0]), new Player(1, this.champions[1])],
+      zones: [],
       projectiles: [],
       effects: [],
       winner: null,
@@ -45,7 +77,7 @@ export class Game {
     this.scheduled = [];
     this.groups.clear();
     this.spellBuffer.clear();
-    this.ultimateTargets.clear();
+    this.approachTargets.clear();
     this.serial = 0;
   }
 
@@ -54,7 +86,7 @@ export class Game {
     this.scheduled = [];
     this.groups.clear();
     this.spellBuffer.clear();
-    this.ultimateTargets.clear();
+    this.approachTargets.clear();
   }
 
   input(id: PlayerId, input: Input): boolean {
@@ -104,6 +136,7 @@ export class Game {
     const due = this.scheduled.filter((event) => event.at <= s.time);
     this.scheduled = this.scheduled.filter((event) => event.at > s.time);
     due.sort((a, b) => a.at - b.at).forEach((event) => event.run());
+    this.singed.update();
     this.updateProjectiles(dt);
     for (const p of s.players) this.updateMark(p);
     s.effects = s.effects.filter((effect) => s.time - effect.at < 0.8);
@@ -113,7 +146,7 @@ export class Game {
     if (dead.length) {
       s.phase = 'finished';
       this.spellBuffer.clear();
-      this.ultimateTargets.clear();
+      this.approachTargets.clear();
       s.winner = dead.length === 2 ? 'draw' : ((1 - dead[0].id) as PlayerId);
     }
   }
@@ -135,17 +168,21 @@ export class Game {
     const now = this.state.time;
     p.shadows = p.shadows.filter((shadow) => shadow.expires > now);
     if (p.hp <= 0) return;
-    p.hp = Math.min(STATS.hp, p.hp + STATS.hpRegen * dt);
+    const stats = championStats(p.champion);
+    const regen =
+      (stats.hpRegen + potionBonus(p, now) / 5) * (p.grievousUntil > now ? 1 - SINGED_SPELLS.r.grievous : 1);
+    p.hp = Math.min(stats.hp, p.hp + regen * dt);
+    if (this.singed.moveAirborne(p)) return;
     if (!this.targetable(p) || p.castUntil > now) return;
     const enemy = this.enemy(p);
-    if (this.ultimateTargets.has(p.id)) {
+    if (this.approachTargets.has(p.id)) {
       if (enemy.hp <= 0 || !this.targetable(enemy)) this.cancelApproach(p);
-      else if (distance(p.pos, enemy.pos) <= SPELLS.r.range + STATS.radius) {
-        this.cast(p, 'r', enemy.pos, enemy.id);
+      else if (distance(p.pos, enemy.pos) <= this.targetedRange(p, enemy)) {
+        this.cast(p, p.champion === 'singed' ? 'e' : 'r', enemy.pos, enemy.id);
         return;
       } else p.destination = { ...enemy.pos };
     }
-    const attackRange = STATS.attackRange + 2 * STATS.radius;
+    const attackRange = stats.attackRange + stats.radius + championStats(enemy.champion).radius;
     if (p.attackMove && enemy.hp > 0 && this.targetable(enemy) && distance(p.pos, enemy.pos) <= attackRange) {
       p.attackMove = null;
       p.attacking = true;
@@ -154,17 +191,19 @@ export class Game {
       p.destination = distance(p.pos, enemy.pos) > attackRange ? { ...enemy.pos } : null;
       if (!p.destination && p.attackAt <= now && p.windupUntil === 0) this.attack(p, enemy);
     }
-    if (!p.destination || p.windupUntil > now) return;
+    if (!p.destination || p.windupUntil > now || p.rootUntil > now || p.id === this.stationary) return;
     const target = p.destination;
     p.facing = Math.atan2(target.y - p.pos.y, target.x - p.pos.x);
-    const speed = STATS.speed * (p.slowUntil > now ? 1 - p.slow : 1);
+    const slow = Math.max(p.slowUntil > now ? p.slow : 0, this.singed.grounded(p) ? SINGED_SPELLS.w.slow : 0);
+    const slipstream = p.singed && p.singed.slipstreamUntil > now ? 1 + SINGED_PASSIVE.speed : 1;
+    const speed = (stats.speed + potionBonus(p, now)) * slipstream * (1 - slow);
     p.pos = bounded(towards(p.pos, target, speed * dt));
     if (distance(p.pos, target) < 1) p.destination = null;
   }
 
   private separatePlayers() {
     const [a, b] = this.state.players;
-    if (!this.targetable(a) || !this.targetable(b) || a.mark || b.mark) return;
+    if (!this.targetable(a) || !this.targetable(b) || a.mark || b.mark || a.airborne || b.airborne) return;
     const d = distance(a.pos, b.pos);
     if (d >= 2 * STATS.radius) return;
     const v = d > 0 ? direction(a.pos, b.pos) : { x: 1, y: 0 };
@@ -176,7 +215,9 @@ export class Game {
   }
 
   private attack(p: PlayerState, enemy: PlayerState) {
-    const delay = STATS.windup / STATS.attackSpeed;
+    const stats = championStats(p.champion);
+    const enemyStats = championStats(enemy.champion);
+    const delay = stats.windup / stats.attackSpeed;
     const stamp = this.state.time + delay;
     p.windupUntil = stamp;
     p.facing = Math.atan2(enemy.pos.y - p.pos.y, enemy.pos.x - p.pos.x);
@@ -184,26 +225,36 @@ export class Game {
       if (p.windupUntil !== stamp) return;
       p.windupUntil = 0;
       if (
+        p.airborne ||
         !this.targetable(p) ||
         !this.targetable(enemy) ||
-        distance(p.pos, enemy.pos) > STATS.attackRange + 2 * STATS.radius + 25
+        distance(p.pos, enemy.pos) > stats.attackRange + stats.radius + enemyStats.radius + 25
       )
         return;
-      p.attackAt = this.state.time + (1 - STATS.windup) / STATS.attackSpeed;
-      const passive = enemy.hp < STATS.hp * PASSIVE.threshold && p.passiveAt <= this.state.time;
-      this.damage(p.id, enemy, STATS.ad, 'physical');
+      p.attackAt = this.state.time + (1 - stats.windup) / stats.attackSpeed;
+      const passive =
+        p.champion === 'zed' &&
+        enemy.hp < enemyStats.hp * PASSIVE.threshold &&
+        p.passiveAt <= this.state.time;
+      this.damage(p.id, enemy, stats.ad, 'physical');
       p.stats.attacksHit++;
       this.effect('attack', enemy.pos, p.id);
       if (passive) {
-        this.damage(p.id, enemy, STATS.hp * PASSIVE.ratio, 'magic');
+        this.damage(p.id, enemy, enemyStats.hp * PASSIVE.ratio, 'magic');
         p.passiveAt = this.state.time + PASSIVE.cooldown;
         this.effect('passive', enemy.pos, p.id);
       }
     });
   }
 
+  private targetedRange(p: PlayerState, enemy: PlayerState) {
+    return p.champion === 'singed'
+      ? SINGED_SPELLS.e.range + championStats(p.champion).radius + championStats(enemy.champion).radius
+      : SPELLS.r.range + championStats(enemy.champion).radius;
+  }
+
   private cancelApproach(p: PlayerState) {
-    if (this.ultimateTargets.delete(p.id)) p.destination = null;
+    if (this.approachTargets.delete(p.id)) p.destination = null;
   }
 
   private recastShadow(p: PlayerState, key: SpellKey) {
@@ -218,6 +269,20 @@ export class Game {
     const now = this.state.time;
     const { spell: key, target } = input;
     const shadow = this.recastShadow(p, key);
+    const displacement = key === 'd' || (p.champion === 'zed' && (key === 'r' || (key === 'w' && !!shadow)));
+    if (displacement && (p.rootUntil > now || this.singed.grounded(p))) return null;
+    if (p.airborne) return null;
+    if (p.champion === 'singed') {
+      const enemy = this.enemy(p);
+      if (key === 'e' && (target !== enemy.id || !this.targetable(enemy) || enemy.hp <= 0 || enemy.airborne))
+        return null;
+      return Math.max(
+        now,
+        p.untargetableUntil,
+        p.cooldowns[key],
+        key === 'w' || key === 'e' ? p.castUntil : 0,
+      );
+    }
     if (shadow) {
       if (key === 'w' && distance(p.pos, shadow.pos) > SPELLS.w.swapRange) return null;
       return Math.max(now, p.untargetableUntil, shadow.swapAfter, shadow.readyAt);
@@ -274,15 +339,17 @@ export class Game {
     }
     const spell = SPELLS[key];
     const enemy = this.enemy(p);
-    if (key === 'r' && distance(p.pos, enemy.pos) > SPELLS.r.range + STATS.radius) {
-      this.ultimateTargets.set(p.id, enemy.id);
+    const targeted = p.champion === 'singed' ? key === 'e' : key === 'r';
+    if (targeted && distance(p.pos, enemy.pos) > this.targetedRange(p, enemy)) {
+      this.approachTargets.set(p.id, enemy.id);
       p.destination = { ...enemy.pos };
       p.attacking = false;
       p.attackMove = null;
       p.windupUntil = 0;
       return true;
     }
-    if (key === 'r') this.cancelApproach(p);
+    if (targeted) this.cancelApproach(p);
+    if (p.champion === 'singed' && key !== 'd') return this.singed.cast(p, key, point);
     p.cooldowns[key] = now + spell.cooldown;
     if (key === 'q') this.shuriken(p, point);
     if (key === 'w') this.shadow(p, point);
@@ -476,7 +543,8 @@ export class Game {
     store = true,
   ) {
     if (store && target.mark?.owner === owner) target.mark.stored += raw;
-    const resistance = type === 'physical' ? STATS.armor : STATS.mr;
+    const stats = championStats(target.champion);
+    const resistance = (type === 'physical' ? stats.armor : stats.mr) + potionBonus(target, this.state.time);
     const amount = (raw * 100) / (100 + resistance);
     this.state.players[owner].stats.damageDealt += Math.min(target.hp, amount);
     target.hp = Math.max(0, target.hp - amount);

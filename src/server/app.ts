@@ -119,10 +119,10 @@ export async function createApplication(development = false) {
           let room = new Room(mode);
           while (rooms.has(room.code)) room = new Room(mode);
           rooms.set(room.code, room);
-          room.join(peer);
+          room.join(peer, message.champion);
         } else if (message.type === 'join') {
           const room = rooms.get(message.code);
-          if (!room || !room.join(peer))
+          if (!room || !room.join(peer, message.champion))
             send(peer, {
               type: 'error',
               message:
@@ -135,6 +135,7 @@ export async function createApplication(development = false) {
         }
       }
       if (message.type === 'ready') peer.room?.setReady(peer);
+      if (message.type === 'select-champion') peer.room?.selectChampion(peer, message.champion);
       if (message.type === 'reset-practice') peer.room?.resetPractice();
       if (message.type === 'input') peer.room?.enqueue(peer, message.seq, message.input);
     });

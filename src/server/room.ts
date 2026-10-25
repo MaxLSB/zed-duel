@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { Game } from '../shared/game';
-import type { Input, PlayerId, ServerMessage } from '../shared/types';
+import type { ChampionId, Input, PlayerId, ServerMessage } from '../shared/types';
 
 export interface Peer {
   socket: WebSocket;
@@ -36,7 +36,7 @@ export class Room {
     this.broadcast();
   }
 
-  join(peer: Peer): boolean {
+  join(peer: Peer, champion: ChampionId = 'zed'): boolean {
     if (this.mode === 'practice' && this.peers.some(Boolean)) return false;
     const slot = this.peers.findIndex((p) => p === null);
     if (slot < 0) return false;
@@ -44,6 +44,7 @@ export class Room {
     peer.id = slot as PlayerId;
     peer.seq = -1;
     this.peers[slot] = peer;
+    this.game.selectChampion(peer.id, champion);
     send(peer, { type: 'joined', code: this.code, player: peer.id });
     if (this.mode === 'practice') this.resetPractice();
     this.broadcast();
@@ -56,6 +57,15 @@ export class Room {
     this.ready = [false, false];
     this.inputs = [];
     this.game.disconnect();
+    this.game.selectChampion(peer.id, 'zed');
+    this.broadcast();
+  }
+
+  selectChampion(peer: Peer, champion: ChampionId) {
+    if (this.mode !== 'duel' || this.game.state.phase !== 'waiting') return;
+    if (!this.game.selectChampion(peer.id, champion)) return;
+    this.ready = [false, false];
+    this.inputs = [];
     this.broadcast();
   }
 

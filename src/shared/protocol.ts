@@ -1,7 +1,8 @@
 import { SPELL_KEYS } from './balance';
-import type { ClientMessage, Input, Vec } from './types';
+import type { ChampionId, ClientMessage, Input, Vec } from './types';
 
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
+export const isChampion = (value: unknown): value is ChampionId => value === 'zed' || value === 'singed';
 const point = (value: unknown): value is Vec =>
   object(value) &&
   typeof value.x === 'number' &&
@@ -27,9 +28,20 @@ export function parseMessage(raw: string): ClientMessage | null {
   try {
     const message: unknown = JSON.parse(raw);
     if (!object(message)) return null;
-    if (['create', 'practice', 'reset-practice', 'ready', 'leave'].includes(message.type as string))
+    if (message.type === 'select-champion' && isChampion(message.champion)) return message as ClientMessage;
+    if (
+      ['create', 'practice'].includes(message.type as string) &&
+      (message.champion === undefined || isChampion(message.champion))
+    )
       return message as ClientMessage;
-    if (message.type === 'join' && typeof message.code === 'string' && /^[A-Z0-9]{6}$/.test(message.code))
+    if (['reset-practice', 'ready', 'leave'].includes(message.type as string))
+      return message as ClientMessage;
+    if (
+      message.type === 'join' &&
+      typeof message.code === 'string' &&
+      /^[A-Z0-9]{6}$/.test(message.code) &&
+      (message.champion === undefined || isChampion(message.champion))
+    )
       return message as ClientMessage;
     if (message.type === 'ping' && typeof message.sent === 'number' && Number.isFinite(message.sent))
       return message as ClientMessage;

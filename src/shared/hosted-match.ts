@@ -1,6 +1,6 @@
 import { Game } from './game';
-import { parseMessage } from './protocol';
-import type { ClientMessage, Input, PlayerId, RoomState, ServerMessage } from './types';
+import { isChampion, parseMessage } from './protocol';
+import type { ChampionId, ClientMessage, Input, PlayerId, RoomState, ServerMessage } from './types';
 
 export class HostedMatch {
   readonly game: Game;
@@ -17,18 +17,21 @@ export class HostedMatch {
     readonly mode: 'duel' | 'practice',
     readonly code: string,
     private publish: (player: PlayerId, message: ServerMessage) => void,
+    champion: ChampionId = 'zed',
   ) {
     this.game = new Game(mode === 'practice' ? 1 : null);
+    this.game.selectChampion(0, isChampion(champion) ? champion : 'zed');
     this.publish(0, { type: 'joined', code, player: 0 });
     if (mode === 'practice') this.resetPractice();
     else this.broadcast();
   }
 
-  join(): boolean {
-    if (this.mode !== 'duel' || this.connected[1]) return false;
+  join(champion: ChampionId = 'zed'): boolean {
+    if (this.mode !== 'duel' || this.connected[1] || !isChampion(champion)) return false;
     this.connected[1] = true;
     this.seq[1] = -1;
     this.rate[1] = { at: 0, count: 0 };
+    this.game.selectChampion(1, champion);
     this.publish(1, { type: 'joined', code: this.code, player: 1 });
     this.broadcast();
     return true;
@@ -39,6 +42,7 @@ export class HostedMatch {
     this.ready = [false, false];
     this.inputs = [];
     this.game.disconnect();
+    this.game.selectChampion(1, 'zed');
     this.broadcast();
   }
 
@@ -58,6 +62,15 @@ export class HostedMatch {
       return;
     }
     if (!message) return;
+    if (
+      message.type === 'select-champion' &&
+      this.mode === 'duel' &&
+      this.game.selectChampion(player, message.champion)
+    ) {
+      this.ready = [false, false];
+      this.inputs = [];
+      this.broadcast();
+    }
     if (message.type === 'ping') this.publish(player, { type: 'pong', sent: message.sent });
     if (message.type === 'reset-practice' && player === 0 && this.mode === 'practice') this.resetPractice();
     if (
