@@ -1,8 +1,8 @@
 import type { SignalRoom } from './room';
-import type { TurnEnv } from './turn';
+import { RELAY_VERSION } from '../src/shared/signaling';
 export { SignalRoom } from './room';
 
-interface Env extends TurnEnv {
+interface Env {
   ROOMS: DurableObjectNamespace<SignalRoom>;
   ALLOWED_ORIGIN: string;
   REQUEST_LIMITER: RateLimit;
@@ -11,7 +11,8 @@ interface Env extends TurnEnv {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname === '/health') return Response.json({ ok: true });
+    if (url.pathname === '/health')
+      return Response.json({ ok: true, transport: 'websocket', version: RELAY_VERSION });
     if (request.headers.get('Origin') !== env.ALLOWED_ORIGIN)
       return new Response('Origin not allowed', { status: 403 });
     const headers = {
@@ -31,8 +32,6 @@ export default {
         { status: 429, headers },
       );
     if (url.pathname === '/rooms' && request.method === 'POST') {
-      if (env.LOCAL_TEST !== 'true' && (!env.TURN_KEY_ID || !env.TURN_API_TOKEN))
-        return Response.json({ error: 'The relay service is not configured yet.' }, { status: 503, headers });
       for (let attempt = 0; attempt < 3; attempt++) {
         const code = [...crypto.getRandomValues(new Uint8Array(3))]
           .map((n) => n.toString(16).padStart(2, '0'))

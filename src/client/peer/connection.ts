@@ -1,8 +1,7 @@
 import { GameConnection } from '../connection';
 import type { ChampionId, ClientMessage, PlayerId, ServerMessage } from '../../shared/types';
-import type { IceServer, PeerSignal, SignalMessage } from '../../shared/signaling';
+import { RELAY_VERSION, type SignalMessage } from '../../shared/signaling';
 import type { HostCommand } from './host-worker';
-import { RtcPeer } from './rtc-peer';
 import { Signaling } from './signaling';
 import { isChampion } from '../../shared/protocol';
 
@@ -11,11 +10,8 @@ const HOST_UNREACHABLE =
 
 export class PeerConnection extends GameConnection {
   private signaling: Signaling | null = null;
-  private peer: RtcPeer | null = null;
   private worker: Worker | null = null;
-  private ice: IceServer[] | null = null;
   private session = '';
-  private signals: PeerSignal[] = [];
   private timeout = 0;
   private heartbeat = 0;
   private stage = '';
@@ -60,7 +56,7 @@ export class PeerConnection extends GameConnection {
         this.fail('Could not start the connection. Try an up-to-date browser.');
       }
     } else if (this.worker) this.post({ type: 'message', player: 0, message });
-    else this.peer?.send(message);
+    else this.relay(message);
   }
 
   private connect(code?: string) {
@@ -86,76 +82,41 @@ export class PeerConnection extends GameConnection {
       return;
     }
     if (message.type === 'welcome') {
+      if (message.version !== RELAY_VERSION) {
+        this.fail('The room service needs an update. Please try again after deployment.');
+        return;
+      }
       this.player = message.player;
       this.code = this.signaling!.code;
-      this.progress('Preparing connection…');
-      this.signaling!.requestIce();
-    }
-    if (message.type === 'ice') {
-      this.ice = message.servers;
-      if (this.player === 0 && !this.worker) this.startHost('duel', this.code);
+      if (this.player === 0) this.startHost('duel', this.code);
+      else this.progress('Connecting to host…');
     }
     if (message.type === 'peer') {
-      this.peer?.close();
-      this.peer = null;
       this.session = message.session;
-      this.signals = [];
       this.guestJoined = false;
-      if (this.player === 1) this.progress('Connecting to host…');
+      if (this.player === 1) {
+        this.progress('Waiting for host…');
+        this.relay({ type: 'hello', champion: this.champion });
+      }
     }
     if (message.type === 'peer-left' && message.session === this.session) {
-      this.peer?.close();
-      this.peer = null;
       this.session = '';
-      this.signals = [];
       this.guestJoined = false;
       this.post({ type: 'leave' });
     }
-    if (message.type === 'signal' && message.session === this.session) {
-      if (this.peer) this.peer.receive(message.signal);
-      else if (this.signals.length < 100) this.signals.push(message.signal);
-    }
-    if (this.session && this.ice && !this.peer) this.startPeer();
+    if (message.type !== 'relay' || message.session !== this.session || message.from === this.player) return;
+    if (this.player === 0) {
+      if (!this.guestJoined) {
+        const hello = message.data as { type?: string; champion?: unknown } | null;
+        if (hello?.type !== 'hello' || !isChampion(hello.champion)) return;
+        this.guestJoined = true;
+        this.post({ type: 'join', champion: hello.champion });
+      } else this.post({ type: 'message', player: 1, message: message.data });
+    } else this.acceptRemote(message.data);
   }
 
-  private startPeer() {
-    const session = this.session;
-    const peer = new RtcPeer(this.ice!, {
-      signal: (signal) => this.signaling?.signal(session, signal),
-      open: () => {
-        if (this.peer !== peer) return;
-        if (this.player === 1) {
-          peer.send({ type: 'hello', champion: this.champion });
-          this.progress('Waiting for host…');
-        }
-      },
-      data: (value) => {
-        if (this.peer !== peer) return;
-        if (this.player === 0) {
-          if (!this.guestJoined) {
-            const hello = value as { type?: string; champion?: unknown } | null;
-            if (hello?.type !== 'hello' || !isChampion(hello.champion)) return;
-            this.guestJoined = true;
-            this.post({ type: 'join', champion: hello.champion });
-          } else this.post({ type: 'message', player: 1, message: value });
-        } else this.acceptRemote(value);
-      },
-      close: () => {
-        if (this.peer !== peer) return;
-        if (this.player === 1)
-          this.fail(this.room ? 'The host disconnected. Join a new duel to play again.' : HOST_UNREACHABLE);
-        else {
-          this.peer = null;
-          this.session = '';
-          this.post({ type: 'leave' });
-          this.emit('error', 'The opponent disconnected. They can rejoin using the room code.');
-        }
-      },
-    });
-    this.peer = peer;
-    if (this.player === 0) peer.offer();
-    for (const signal of this.signals) peer.receive(signal);
-    this.signals = [];
+  private relay(data: unknown, snapshot = false) {
+    if (this.session) this.signaling?.relay(this.session, data, snapshot);
   }
 
   private startHost(mode: 'duel' | 'practice', code: string) {
@@ -165,7 +126,7 @@ export class PeerConnection extends GameConnection {
     worker.onmessage = ({ data }: MessageEvent<{ player: PlayerId; message: ServerMessage }>) => {
       if (this.worker !== worker) return;
       if (data.player === 0) this.accept(data.message);
-      else this.peer?.send(data.message, data.message.type === 'state');
+      else this.relay(data.message, data.message.type === 'state');
     };
     worker.onerror = () => this.fail('The host stopped. Please create a new duel.');
     this.post({ type: 'start', mode, code, champion: this.champion });
@@ -223,16 +184,12 @@ export class PeerConnection extends GameConnection {
     window.clearTimeout(this.timeout);
     window.clearInterval(this.heartbeat);
     this.timeout = 0;
-    this.peer?.close();
-    this.peer = null;
     this.signaling?.close();
     this.signaling = null;
     this.worker?.terminate();
     this.worker = null;
     this.room = null;
-    this.ice = null;
     this.guestJoined = false;
     this.session = '';
-    this.signals = [];
   }
 }

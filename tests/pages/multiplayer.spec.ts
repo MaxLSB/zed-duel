@@ -9,13 +9,17 @@ async function aim(page: Page, x: number, y: number) {
   );
 }
 
-test('Pages hosts a complete peer duel, rejects a third player, rematches and handles host departure', async ({
+test('Pages completes a relayed duel with WebRTC disabled, rejects a third player and rematches', async ({
   browser,
   page,
 }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   const guestContext = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+  await page.addInitScript(() => Object.defineProperty(window, 'RTCPeerConnection', { value: undefined }));
+  await guestContext.addInitScript(() =>
+    Object.defineProperty(window, 'RTCPeerConnection', { value: undefined }),
+  );
   const guest = await guestContext.newPage();
   guest.on('pageerror', (error) => errors.push(error.message));
   const thirdContext = await browser.newContext();
@@ -113,37 +117,24 @@ test('a missing peer room reports a failure and allows trying again', async ({ p
   await expect(page.locator('.room-code')).toBeVisible();
 });
 
-test('blocked WebRTC times out visibly, supports retry and cancels cleanly', async ({ browser, page }) => {
-  await page.goto('/zed-duel/');
-  await page.getByRole('button', { name: 'Create a duel' }).click();
-  await expect(page.locator('.room-code')).toBeVisible();
-  const context = await browser.newContext();
-  try {
-    await context.addInitScript(() => {
-      const NativePeer = window.RTCPeerConnection;
-      window.RTCPeerConnection = class extends NativePeer {
-        constructor(config?: RTCConfiguration) {
-          super({ ...config, iceServers: [], iceTransportPolicy: 'relay' });
-        }
-      };
-    });
-    const guest = await context.newPage();
-    await guest.clock.install();
-    await guest.goto(page.url());
-    await expect(guest.locator('#connection-progress')).toHaveText('Connecting to host…');
-    await guest.clock.fastForward(26_000);
-    await expect(guest.getByRole('heading', { name: 'Connection failed' })).toBeVisible();
-    await expect(guest.getByRole('alert')).toContainText('Could not connect to the host');
-    await guest.getByRole('button', { name: 'Try again', exact: true }).click();
-    await expect(guest.getByRole('heading', { name: 'Connecting…' })).toBeVisible();
-    await guest.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await guest.getByRole('button', { name: /Practice solo/ }).click();
-    await expect(guest.locator('#overlay')).toHaveClass(/hidden/);
-    await guest.clock.fastForward(30_000);
-    await expect(guest.locator('#overlay')).toHaveClass(/hidden/);
-  } finally {
-    await context.close();
-  }
+test('an unresponsive host times out visibly, supports retry and cancels cleanly', async ({ page }) => {
+  await page.clock.install();
+  await page.routeWebSocket('**/rooms/*/socket*', (socket) => {
+    socket.send(JSON.stringify({ type: 'welcome', player: 1, version: 2 }));
+    socket.send(JSON.stringify({ type: 'peer', session: 'stalled-host' }));
+  });
+  await page.goto('/zed-duel/?room=ABC123');
+  await expect(page.locator('#connection-progress')).toHaveText('Waiting for host…');
+  await page.clock.fastForward(26_000);
+  await expect(page.getByRole('heading', { name: 'Connection failed' })).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('Could not connect to the host');
+  await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Connecting…' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByRole('button', { name: /Practice solo/ }).click();
+  await expect(page.locator('#overlay')).toHaveClass(/hidden/);
+  await page.clock.fastForward(30_000);
+  await expect(page.locator('#overlay')).toHaveClass(/hidden/);
 });
 
 test('guest departure frees the Cloudflare room for a new guest', async ({ browser, page }) => {
@@ -198,7 +189,7 @@ test('Pages Singed practice starts offline with the selected kit and retains it 
   expect(errors).toEqual([]);
 });
 
-test('Pages carries host and guest champion selections over WebRTC and synchronizes changes', async ({
+test('Pages carries host and guest champion selections over the relay and synchronizes changes', async ({
   page,
   browser,
 }) => {
