@@ -107,3 +107,74 @@ test('a missing peer room reports a failure and allows trying again', async ({ p
   await page.getByRole('button', { name: 'Create a duel' }).click();
   await expect(page.locator('.room-code')).toBeVisible();
 });
+
+test('Pages Singed practice starts offline with the selected kit and retains it on reset and reload', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.route('**/*', (route) =>
+    new URL(route.request().url()).port === '3180' ? route.continue() : route.abort(),
+  );
+  await page.goto('/zed-duel/');
+  await page.getByLabel('Champion', { exact: true }).selectOption('singed');
+  await page.getByRole('button', { name: 'Practice solo · stationary dummy' }).click();
+  await expect(page).toHaveURL('http://127.0.0.1:3180/zed-duel/?practice=1&champion=singed');
+  await expect(page.locator('#overlay')).toHaveClass(/hidden/);
+  await expect(page.locator('#hp-0')).toHaveText('2282 / 2282');
+  await expect(page.locator('[data-spell=e]')).toHaveAccessibleName('Fling');
+  await aim(page, 1450, 700);
+  await page.keyboard.press('a');
+  await expect(page.locator('[data-spell=q]')).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('e');
+  await expect
+    .poll(async () => Number((await page.locator('#hp-1').textContent())!.split('/')[0]))
+    .toBeLessThan(2337);
+  await page.getByRole('button', { name: 'Reset practice', exact: true }).click();
+  await expect(page.locator('[data-spell=q]')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#hp-1')).toHaveText('2337 / 2337');
+  await page.reload();
+  await expect(page.locator('#overlay')).toHaveClass(/hidden/);
+  await expect(page.locator('#champion-0')).toHaveText('SINGED');
+  await page.getByRole('button', { name: 'Leave room', exact: true }).click();
+  await expect(page).toHaveURL('http://127.0.0.1:3180/zed-duel/');
+  expect(errors).toEqual([]);
+});
+
+test('Pages carries host and guest champion selections over WebRTC and synchronizes changes', async ({
+  page,
+  browser,
+}) => {
+  const context = await browser.newContext();
+  const guest = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  guest.on('pageerror', (error) => errors.push(error.message));
+  try {
+    await page.goto('/zed-duel/');
+    await page.getByLabel('Champion', { exact: true }).selectOption('singed');
+    await page.getByRole('button', { name: 'Create a duel' }).click();
+    await expect(page.locator('.room-code')).toBeVisible();
+    await guest.goto(`${page.url()}&champion=singed`);
+    await expect(guest.getByRole('heading', { name: 'Ready to duel' })).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#champion-1')).toHaveText('SINGED');
+    await expect(guest.locator('[data-spell=q]')).toHaveAccessibleName('Poison Trail');
+    await page.getByRole('button', { name: 'Ready to duel' }).click();
+    await guest.getByLabel('Champion', { exact: true }).selectOption('zed');
+    await expect(page.getByRole('button', { name: 'Ready to duel' })).toBeEnabled();
+    await expect(page.locator('#champion-1')).toHaveText('ZED');
+    await expect(guest.locator('[data-spell=q]')).toHaveAccessibleName('Razor Shuriken');
+    await page.getByRole('button', { name: 'Ready to duel' }).click();
+    await guest.getByRole('button', { name: 'Ready to duel' }).click();
+    await expect(page.locator('#overlay')).toHaveClass(/hidden/, { timeout: 6000 });
+    await expect(guest.locator('#overlay')).toHaveClass(/hidden/);
+    await page.keyboard.press('r');
+    await expect(guest.locator('#status-0')).toHaveText('INSANITY POTION');
+    await guest.getByRole('button', { name: 'Leave room', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Waiting for opponent' })).toBeVisible();
+    await expect(page.getByLabel('Champion', { exact: true })).toHaveValue('singed');
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});

@@ -2,6 +2,7 @@ import type { ClientMessage, Input, PlayerId, RoomState, ServerMessage } from '.
 
 export abstract class GameConnection extends EventTarget {
   private seq = 0;
+  private incompatibleServer = false;
   player: PlayerId = 0;
   room: RoomState | null = null;
   latency = 0;
@@ -22,6 +23,19 @@ export abstract class GameConnection extends EventTarget {
       this.emit('joined', message);
     }
     if (message.type === 'state') {
+      // Old Node servers or peer hosts lack champion fields. Reject their
+      // snapshots before they reach the renderer and explain how to update.
+      const game = message.room.game;
+      if (
+        !Array.isArray(game.zones) ||
+        !game.players.every((p) => p.champion === 'zed' || p.champion === 'singed')
+      ) {
+        this.room = null;
+        if (!this.incompatibleServer) this.emit('incompatible-server', null);
+        this.incompatibleServer = true;
+        return;
+      }
+      this.incompatibleServer = false;
       this.room = message.room;
       this.emit('state', message.room);
     }

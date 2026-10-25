@@ -1,10 +1,11 @@
 import { HostedMatch } from '../../shared/hosted-match';
 import { STEP } from '../../shared/balance';
-import type { PlayerId } from '../../shared/types';
+import type { ChampionId, PlayerId } from '../../shared/types';
 
 export type HostCommand =
-  | { type: 'start'; mode: 'duel' | 'practice'; code: string }
-  | { type: 'join' | 'leave' }
+  | { type: 'start'; mode: 'duel' | 'practice'; code: string; champion?: ChampionId }
+  | { type: 'join'; champion?: ChampionId }
+  | { type: 'leave' }
   | { type: 'message'; player: PlayerId; message: unknown };
 
 let match: HostedMatch | null = null;
@@ -13,11 +14,16 @@ let previous = performance.now(),
   ticks = 0;
 self.onmessage = ({ data }: MessageEvent<HostCommand>) => {
   if (data.type === 'start') {
-    match = new HostedMatch(data.mode, data.code, (player, message) => self.postMessage({ player, message }));
+    match = new HostedMatch(
+      data.mode,
+      data.code,
+      (player, message) => self.postMessage({ player, message }),
+      data.champion,
+    );
     previous = performance.now();
     accumulator = 0;
   }
-  if (data.type === 'join') match?.join();
+  if (data.type === 'join') match?.join(data.champion);
   if (data.type === 'leave') match?.leave();
   if (data.type === 'message') match?.handle(data.player, data.message);
 };

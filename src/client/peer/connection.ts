@@ -1,7 +1,8 @@
 import Peer from 'peerjs';
 import type { DataConnection } from 'peerjs';
 import { GameConnection } from '../connection';
-import type { ClientMessage, PlayerId, ServerMessage } from '../../shared/types';
+import type { ChampionId, ClientMessage, PlayerId, ServerMessage } from '../../shared/types';
+import { isChampion } from '../../shared/protocol';
 import type { HostCommand } from './host-worker';
 import { peerId, peerOptions, roomCode } from './options';
 
@@ -30,11 +31,13 @@ export class PeerConnection extends GameConnection {
     }
     if (message.type === 'create' || message.type === 'join' || message.type === 'practice') {
       if (this.peer || this.worker) return;
-      if (message.type === 'practice') this.startHost('practice', roomCode());
+      const champion = message.champion ?? 'zed';
+      if (!isChampion(champion)) return;
+      if (message.type === 'practice') this.startHost('practice', roomCode(), champion);
       else {
         this.emit('connecting', null);
-        if (message.type === 'create') this.createHost();
-        else if (message.type === 'join') this.join(message.code);
+        if (message.type === 'create') this.createHost(champion);
+        else if (message.type === 'join') this.join(message.code, champion);
       }
       return;
     }
@@ -42,7 +45,7 @@ export class PeerConnection extends GameConnection {
     else if (this.channel?.open) this.channel.send(message);
   }
 
-  private startHost(mode: 'duel' | 'practice', code: string) {
+  private startHost(mode: 'duel' | 'practice', code: string, champion: ChampionId) {
     this.code = code;
     const worker = new Worker(new URL('./host-worker.ts', import.meta.url), { type: 'module' });
     this.worker = worker;
@@ -56,15 +59,15 @@ export class PeerConnection extends GameConnection {
         this.channel.send(data.message);
     };
     worker.onerror = () => this.fail('The host stopped. Please create a new duel.');
-    this.post({ type: 'start', mode, code });
+    this.post({ type: 'start', mode, code, champion });
   }
 
-  private createHost(attempt = 0) {
+  private createHost(champion: ChampionId, attempt = 0) {
     this.code = roomCode();
     const peer = this.openPeer(peerId(this.code));
     if (!peer) return;
     peer.once('open', () => {
-      if (this.peer === peer) this.startHost('duel', this.code);
+      if (this.peer === peer) this.startHost('duel', this.code, champion);
     });
     peer.on('connection', (channel) => {
       if (this.peer !== peer) {
@@ -85,12 +88,12 @@ export class PeerConnection extends GameConnection {
       if (error.type === 'unavailable-id' && !this.worker && attempt < 3) {
         this.peer = null;
         peer.destroy();
-        this.createHost(attempt + 1);
+        this.createHost(champion, attempt + 1);
       } else this.peerError(error.type);
     });
   }
 
-  private join(code: string) {
+  private join(code: string, champion: ChampionId) {
     if (!/^[A-Z0-9]{6}$/.test(code)) {
       this.fail('Check the room code.');
       return;
@@ -101,7 +104,11 @@ export class PeerConnection extends GameConnection {
     peer.once('open', () => {
       if (this.peer === peer)
         this.attach(
-          peer.connect(peerId(code), { reliable: true, serialization: 'json', metadata: { protocol: 1 } }),
+          peer.connect(peerId(code), {
+            reliable: true,
+            serialization: 'json',
+            metadata: { protocol: 1, champion },
+          }),
           false,
         );
     });
@@ -151,7 +158,15 @@ export class PeerConnection extends GameConnection {
     channel.on('open', () => {
       window.clearTimeout(opening);
       if (this.channel !== channel) return;
-      if (host) this.post({ type: 'join' });
+      if (host) {
+        const champion = channel.metadata?.champion ?? 'zed';
+        if (!isChampion(champion)) {
+          channel.send({ type: 'error', message: 'Invalid champion selection.' });
+          channel.close();
+          return;
+        }
+        this.post({ type: 'join', champion });
+      }
     });
     channel.on('data', (value) => {
       if (this.channel !== channel) return;

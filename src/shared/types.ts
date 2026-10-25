@@ -5,6 +5,28 @@ export interface Vec {
   y: number;
 }
 export type PlayerId = 0 | 1;
+export type ChampionId = 'zed' | 'singed';
+export interface SingedState {
+  poisonOn: boolean;
+  cloudAt: number;
+  slipstreamUntil: number;
+  insanityUntil: number;
+}
+export interface GroundZone {
+  id: number;
+  kind: 'poison' | 'adhesive';
+  owner: PlayerId;
+  pos: Vec;
+  created: number;
+  expires: number;
+}
+export interface Airborne {
+  owner: PlayerId;
+  from: Vec;
+  to: Vec;
+  started: number;
+  ends: number;
+}
 export type Phase = 'waiting' | 'countdown' | 'active' | 'finished';
 export interface Shadow {
   id: number;
@@ -37,6 +59,12 @@ export interface MatchStats {
 }
 export interface PlayerState {
   id: PlayerId;
+  champion: ChampionId;
+  singed: SingedState | null;
+  poison: { owner: PlayerId; until: number; tickAt: number } | null;
+  grievousUntil: number;
+  rootUntil: number;
+  airborne: Airborne | null;
   pos: Vec;
   facing: number;
   hp: number;
@@ -79,6 +107,7 @@ export interface GameState {
   countdown: number;
   players: [PlayerState, PlayerState];
   projectiles: Projectile[];
+  zones: GroundZone[];
   effects: Effect[];
   winner: PlayerId | 'draw' | null;
 }
@@ -87,8 +116,10 @@ export type Input =
   | { action: 'attack' | 'stop' }
   | { action: 'cast'; spell: SpellKey; point: Vec; target?: PlayerId };
 export type ClientMessage =
-  | { type: 'create' | 'practice' | 'reset-practice' }
-  | { type: 'join'; code: string }
+  | { type: 'create' | 'practice'; champion?: ChampionId }
+  | { type: 'reset-practice' }
+  | { type: 'select-champion'; champion: ChampionId }
+  | { type: 'join'; code: string; champion?: ChampionId }
   | { type: 'ready' | 'leave' }
   | { type: 'ping'; sent: number }
   | { type: 'input'; seq: number; input: Input };
