@@ -1,18 +1,17 @@
 import { DurableObject } from 'cloudflare:workers';
-import { iceServers, type TurnEnv } from './turn';
-import type { SignalMessage } from '../src/shared/signaling';
+import { MAX_RELAY_LENGTH, RELAY_VERSION, validRelayData, type SignalMessage } from '../src/shared/signaling';
 
 interface Member {
   player: 0 | 1;
   id: string;
-  iceRequested: boolean;
+  pendingStates: number;
   at: number;
   count: number;
   closed?: boolean;
 }
 
-export class SignalRoom extends DurableObject<TurnEnv> {
-  constructor(ctx: DurableObjectState, env: TurnEnv) {
+export class SignalRoom extends DurableObject<unknown> {
+  constructor(ctx: DurableObjectState, env: unknown) {
     super(ctx, env);
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
   }
@@ -33,7 +32,9 @@ export class SignalRoom extends DurableObject<TurnEnv> {
     const guest = this.members().find((ws) => this.member(ws).player === 1);
     const player = supplied ? 0 : 1;
     let error = '';
-    if (!expected || (player === 1 && !host))
+    if (new URL(request.url).searchParams.get('v') !== String(RELAY_VERSION))
+      error = 'The game has been updated. Reload both players, then create a new room.';
+    else if (!expected || (player === 1 && !host))
       error = 'Room not found. Check the code and keep the host tab open.';
     else if (player === 0 && supplied !== expected) error = 'This invite cannot host the room.';
     else if ((player === 0 && host) || (player === 1 && guest)) error = 'This room already has two players.';
@@ -42,7 +43,7 @@ export class SignalRoom extends DurableObject<TurnEnv> {
     server.serializeAttachment({
       player,
       id: crypto.randomUUID(),
-      iceRequested: false,
+      pendingStates: 0,
       at: Date.now(),
       count: 0,
       closed: !!error,
@@ -51,7 +52,7 @@ export class SignalRoom extends DurableObject<TurnEnv> {
       this.send(server, { type: 'error', message: error });
       server.close(1008, 'Room unavailable');
     } else {
-      this.send(server, { type: 'welcome', player });
+      this.send(server, { type: 'welcome', player, version: RELAY_VERSION });
       if (player === 0) await this.ctx.storage.setAlarm(Date.now() + 14_400_000);
       else {
         const session = this.member(server).id;
@@ -62,15 +63,16 @@ export class SignalRoom extends DurableObject<TurnEnv> {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
-    if (typeof raw !== 'string' || raw.length > 16_384) return this.remove(ws, 1008);
+  webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
     const member = this.member(ws);
     if (member.closed) return;
+    if (typeof raw !== 'string' || raw.length > (member.player === 0 ? MAX_RELAY_LENGTH : 4096))
+      return this.remove(ws, 1008);
     if (Date.now() - member.at >= 1000) {
       member.at = Date.now();
       member.count = 0;
     }
-    if (++member.count > 60) return this.remove(ws, 1008);
+    if (++member.count > 150) return this.remove(ws, 1008);
     ws.serializeAttachment(member);
     let message;
     try {
@@ -78,36 +80,23 @@ export class SignalRoom extends DurableObject<TurnEnv> {
     } catch {
       return this.remove(ws, 1008);
     }
-    if (message?.type === 'ice') {
-      if (member.iceRequested) return;
-      member.iceRequested = true;
+    const guest = this.members().find((peer) => this.member(peer).player === 1);
+    if (!guest || message?.session !== this.member(guest).id) return;
+    if (message.type === 'ack' && member.player === 1) {
+      member.pendingStates = Math.max(0, member.pendingStates - 1);
       ws.serializeAttachment(member);
-      try {
-        const servers = await iceServers(this.env);
-        if (ws.readyState === WebSocket.OPEN) this.send(ws, { type: 'ice', servers });
-      } catch {
-        if (ws.readyState === WebSocket.OPEN)
-          this.send(ws, {
-            type: 'error',
-            message: 'The relay service is unavailable. Please try again later.',
-          });
-        this.remove(ws, 1011);
-      }
       return;
     }
-    if (message?.type !== 'signal') return;
-    const guest = this.members().find((peer) => this.member(peer).player === 1);
-    if (!guest || message.session !== this.member(guest).id) return;
-    const signal = message.signal;
-    if (!signal || typeof signal !== 'object') return;
-    if (signal.description) {
-      if (
-        signal.description.type !== (member.player === 0 ? 'offer' : 'answer') ||
-        typeof signal.description.sdp !== 'string'
-      )
-        return;
-    } else if (!signal.candidate || typeof signal.candidate.candidate !== 'string') return;
-    for (const peer of this.members()) if (peer !== ws) this.send(peer, message);
+    if (message.type !== 'relay' || !validRelayData(member.player, message.data)) return;
+    const target = this.members().find((peer) => this.member(peer).player !== member.player);
+    if (!target) return;
+    if (member.player === 0 && message.data.type === 'state') {
+      const recipient = this.member(target);
+      if (recipient.pendingStates >= 3) return;
+      recipient.pendingStates++;
+      target.serializeAttachment(recipient);
+    }
+    this.send(target, { type: 'relay', session: message.session, from: member.player, data: message.data });
   }
 
   webSocketClose(ws: WebSocket) {

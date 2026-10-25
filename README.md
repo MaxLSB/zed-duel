@@ -4,7 +4,7 @@ A minimalist, two-player browser duel with level-18 Zed or Singed, full champion
 
 ## Play on GitHub Pages
 
-Deploy this repository’s project page at **https://maxlsb.github.io/zed-duel/** without changing the portfolio. Players create a duel and share an invite; Cloudflare handles room signaling and supplies temporary TURN relay credentials; one player’s browser hosts the match. The Cloudflare Worker and TURN key must be configured before publishing this build. No hosted Node game server is required. See [Pages setup and hosting details](docs/github-pages.md).
+Deploy this repository’s project page at **https://maxlsb.github.io/zed-duel/** without changing the portfolio. Players create a duel and share an invite; Cloudflare relays game messages over secure WebSockets; one player’s browser hosts the match. This uses Workers Free and SQLite Durable Objects, without WebRTC, TURN credentials or Cloudflare Realtime activation. Deploy the Worker and configure its public URL before publishing this build. No hosted Node game server is required. See [Pages setup and hosting details](docs/github-pages.md).
 
 ## Run
 
@@ -105,7 +105,7 @@ npm run test:browser
 
 For an installed Chrome browser, use `PLAYWRIGHT_CHANNEL=chrome npm run test:browser`. The browser tests start their own server on port 3100 and save screenshots in `test-results/`.
 
-The automated checks cover combat, protocol validation, browser-hosted sessions, Node/LAN duels and Cloudflare room signaling. Browser tests exercise room codes, invitations, a full duel and rematch, champion selection, offline practice, timeouts, retry/cancel, disconnects and guest rejoining. Local Cloudflare tests deliberately bypass external TURN; passing them does not prove that the deployed relay works across different networks. See [Cloudflare setup and relay validation](docs/github-pages.md).
+The automated checks cover combat, protocol validation, browser-hosted sessions, Node/LAN duels and the Cloudflare WebSocket relay. Browser tests exercise room codes, invitations, a full duel and rematch, champion selection, offline practice, timeouts, retry/cancel, disconnects and guest rejoining. The Pages suite completes a duel with WebRTC disabled and exercises the same relay code used in production. Live deployment and two physical devices on separate networks still need their own checks. See [Cloudflare setup and relay validation](docs/github-pages.md).
 
 The Singed branch adds combat/protocol, connection and in-memory room checks, plus four Playwright scenarios for character selection, mixed rooms and solo practice across the Node and Pages transports. See [the validation notes](docs/singed.md#validation) for what was run in the implementation environment.
 

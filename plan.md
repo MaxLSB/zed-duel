@@ -174,4 +174,21 @@ README.md        setup, controls, LAN/online instructions, known differences
 - Bound connection attempts, show a persistent failure with retry/cancel, and clean up failed sessions.
 - Add a shuriken favicon with the correct GitHub Pages base path.
 - [x] Rebase onto main including Singed; pass 75 unit tests, 14 LAN browser tests, 8 Cloudflare/Pages tests, type checks and a deployment dry run.
-- Production activation still requires Worker deployment, TURN secrets and the GitHub VITE_SIGNAL_URL variable. Verify forced-relay connectivity before claiming the remote-network issue is resolved.
+- Superseded by the WebSocket relay below: Cloudflare Realtime activation required billing, so TURN was not activated.
+
+
+## WebSocket relay without TURN
+
+- Keep GitHub Pages and the existing Cloudflare Worker URL; no Vercel migration or paid service activation.
+- Host browser retains the authoritative simulation. Cloudflare forwards game messages over secure WebSockets using SQLite Durable Objects on Workers Free.
+- Remove WebRTC negotiation and TURN credentials; use the same relay in local tests and production.
+- Validate guest inputs, bind messages to the current guest session, limit frame size/rate, and bound unacknowledged snapshots.
+- Preserve practice, Zed/Singed, Node/LAN, killcam, rematches, favicon and project-only deployment.
+- Validate a full duel with WebRTC disabled, relay role/session isolation, disconnects and deployed Cloudflare connectivity without secrets.
+- Free quotas apply; relay latency depends on both players’ connections. Physical-device validation remains a user acceptance check.
+
+- [x] Pass type checks, 75 unit/session tests, 14 LAN browser tests, 9 Pages/relay tests, both production builds and the Worker dry run.
+- [x] Deploy Worker version `5d1d571e-ca8b-48e4-910b-e76df5cabbf5` with zero secrets; health reports WebSocket protocol v2.
+- [x] Complete a duel, killcam, rematch, third-player rejection and host departure through the deployed Cloudflare relay with WebRTC disabled. The candidate frontend was supplied to browser contexts at the allowed Pages origin; it was not published before PR review.
+- [ ] Merge the frontend PR, wait for Pages publication and have both players reload before creating a fresh room.
+- [ ] Confirm play on two physical computers using separate internet connections.

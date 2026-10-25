@@ -13,7 +13,7 @@
   "env": {
     "test": {
       "name": "zed-duel-signal-test",
-      "vars": { "ALLOWED_ORIGIN": "http://127.0.0.1:3180", "LOCAL_TEST": "true" },
+      "vars": { "ALLOWED_ORIGIN": "http://127.0.0.1:3180" },
       "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "SignalRoom" }] },
       "ratelimits": [
         { "name": "REQUEST_LIMITER", "namespace_id": "1002", "simple": { "limit": 1000, "period": 60 } },

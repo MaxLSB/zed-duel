@@ -1,4 +1,4 @@
-import type { PeerSignal, SignalMessage } from '../../shared/signaling';
+import { RELAY_VERSION, type SignalMessage } from '../../shared/signaling';
 
 export class Signaling extends EventTarget {
   private socket: WebSocket | null = null;
@@ -29,6 +29,7 @@ export class Signaling extends EventTarget {
       this.code = code;
       url.pathname = `/rooms/${code}/socket`;
       url.search = '';
+      url.searchParams.set('v', String(RELAY_VERSION));
       if (token) url.searchParams.set('host', token);
       url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
       const socket = new WebSocket(url);
@@ -47,6 +48,12 @@ export class Signaling extends EventTarget {
           return;
         }
         this.dispatchEvent(new CustomEvent('message', { detail: message }));
+        if (
+          message.type === 'relay' &&
+          message.from === 0 &&
+          (message.data as { type?: string })?.type === 'state'
+        )
+          this.send({ type: 'ack', session: message.session });
       };
       socket.onerror = () =>
         this.error('Could not reach the room service. Check your connection and try again.');
@@ -60,11 +67,9 @@ export class Signaling extends EventTarget {
     }
   }
 
-  requestIce() {
-    this.send({ type: 'ice' });
-  }
-  signal(session: string, signal: PeerSignal) {
-    this.send({ type: 'signal', session, signal });
+  relay(session: string, data: unknown, snapshot = false) {
+    if (snapshot && (this.socket?.bufferedAmount ?? 0) >= 256_000) return;
+    this.send({ type: 'relay', session, data });
   }
 
   close() {
@@ -76,7 +81,12 @@ export class Signaling extends EventTarget {
   }
 
   private send(message: unknown) {
-    if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify(message));
+    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    try {
+      this.socket.send(JSON.stringify(message));
+    } catch {
+      this.error('The room connection closed. Please try again.');
+    }
   }
   private error(message: string) {
     if (!this.abort.signal.aborted) this.dispatchEvent(new CustomEvent('error', { detail: message }));
