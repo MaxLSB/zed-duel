@@ -11,11 +11,20 @@ export default defineConfig({
     channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
     screenshot: 'only-on-failure',
   },
-  webServer: {
-    command: 'npm run build:pages && node --import tsx tests/pages/serve.ts',
-    url: 'http://127.0.0.1:3180/zed-duel/',
-    timeout: 60_000,
-    env: { VITE_PEER_SERVER_URL: 'http://127.0.0.1:3190/peer', VITE_ICE_SERVERS: '[]' },
-    reuseExistingServer: false,
-  },
+  webServer: [
+    {
+      command: 'wrangler dev --env test --port 3190 --ip 127.0.0.1',
+      url: 'http://127.0.0.1:3190/health',
+      timeout: 60_000,
+      env: { WRANGLER_SEND_METRICS: 'false' },
+      reuseExistingServer: false,
+    },
+    {
+      command: 'npm run build:pages && node --import tsx tests/pages/serve.ts',
+      url: 'http://127.0.0.1:3180/zed-duel/',
+      timeout: 60_000,
+      env: { VITE_SIGNAL_URL: 'http://127.0.0.1:3190' },
+      reuseExistingServer: false,
+    },
+  ],
 });

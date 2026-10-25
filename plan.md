@@ -164,3 +164,14 @@ README.md        setup, controls, LAN/online instructions, known differences
 - [x] Pass 50 unit/session tests, 12 LAN browser scenarios and 3 Pages browser scenarios.
 - [x] Connect two browser contexts through the default public PeerJS service and start a duel.
 - [ ] Enable GitHub Pages, merge the PR and verify the published invite on separate internet connections.
+
+
+## Cloudflare connectivity follow-up
+
+- Replace the retired PeerJS relay defaults with Cloudflare signaling and TURN credentials issued by a Worker.
+- Keep authoritative simulation in the host browser and preserve the newly merged Zed/Singed selections.
+- Keep secrets in Cloudflare, scope connections to the project’s origin, cap rooms at two players, and expire unused rooms.
+- Bound connection attempts, show a persistent failure with retry/cancel, and clean up failed sessions.
+- Add a shuriken favicon with the correct GitHub Pages base path.
+- [x] Rebase onto main including Singed; pass 75 unit tests, 14 LAN browser tests, 8 Cloudflare/Pages tests, type checks and a deployment dry run.
+- Production activation still requires Worker deployment, TURN secrets and the GitHub VITE_SIGNAL_URL variable. Verify forced-relay connectivity before claiming the remote-network issue is resolved.

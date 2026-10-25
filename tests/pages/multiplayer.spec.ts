@@ -24,7 +24,10 @@ test('Pages hosts a complete peer duel, rejects a third player, rematches and ha
     await page.getByRole('button', { name: 'Create a duel' }).click();
     await expect(page.locator('.room-code')).toBeVisible();
     expect(new URL(page.url()).pathname).toBe('/zed-duel/');
-    await guest.goto(page.url());
+    const code = new URL(page.url()).searchParams.get('room')!;
+    await guest.goto('/zed-duel/');
+    await guest.getByLabel('Room code').fill(code.toLowerCase());
+    await guest.locator('#join-form button').click();
     await expect(guest.getByRole('heading', { name: 'Ready to duel' })).toBeVisible({ timeout: 15000 });
     const third = await thirdContext.newPage();
     await third.goto(page.url());
@@ -103,9 +106,63 @@ test('Pages practice works without signaling and keeps navigation in the project
 test('a missing peer room reports a failure and allows trying again', async ({ page }) => {
   await page.goto('/zed-duel/?room=ZZZZZZ');
   await expect(page.locator('#toast')).toContainText('Room not found', { timeout: 15000 });
+  await expect(page.getByRole('heading', { name: 'Connection failed' })).toBeVisible();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Create a duel' })).toBeEnabled();
   await page.getByRole('button', { name: 'Create a duel' }).click();
   await expect(page.locator('.room-code')).toBeVisible();
+});
+
+test('blocked WebRTC times out visibly, supports retry and cancels cleanly', async ({ browser, page }) => {
+  await page.goto('/zed-duel/');
+  await page.getByRole('button', { name: 'Create a duel' }).click();
+  await expect(page.locator('.room-code')).toBeVisible();
+  const context = await browser.newContext();
+  try {
+    await context.addInitScript(() => {
+      const NativePeer = window.RTCPeerConnection;
+      window.RTCPeerConnection = class extends NativePeer {
+        constructor(config?: RTCConfiguration) {
+          super({ ...config, iceServers: [], iceTransportPolicy: 'relay' });
+        }
+      };
+    });
+    const guest = await context.newPage();
+    await guest.clock.install();
+    await guest.goto(page.url());
+    await expect(guest.locator('#connection-progress')).toHaveText('Connecting to host…');
+    await guest.clock.fastForward(26_000);
+    await expect(guest.getByRole('heading', { name: 'Connection failed' })).toBeVisible();
+    await expect(guest.getByRole('alert')).toContainText('Could not connect to the host');
+    await guest.getByRole('button', { name: 'Try again', exact: true }).click();
+    await expect(guest.getByRole('heading', { name: 'Connecting…' })).toBeVisible();
+    await guest.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await guest.getByRole('button', { name: /Practice solo/ }).click();
+    await expect(guest.locator('#overlay')).toHaveClass(/hidden/);
+    await guest.clock.fastForward(30_000);
+    await expect(guest.locator('#overlay')).toHaveClass(/hidden/);
+  } finally {
+    await context.close();
+  }
+});
+
+test('guest departure frees the Cloudflare room for a new guest', async ({ browser, page }) => {
+  await page.goto('/zed-duel/');
+  await page.getByRole('button', { name: 'Create a duel' }).click();
+  await expect(page.locator('.room-code')).toBeVisible();
+  const context = await browser.newContext();
+  try {
+    const guest = await context.newPage();
+    await guest.goto(page.url());
+    await expect(guest.getByRole('heading', { name: 'Ready to duel' })).toBeVisible();
+    await guest.getByRole('button', { name: 'Leave room', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Waiting for opponent' })).toBeVisible();
+    await guest.goto(page.url());
+    await expect(guest.getByRole('heading', { name: 'Ready to duel' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Ready to duel' })).toBeVisible();
+  } finally {
+    await context.close();
+  }
 });
 
 test('Pages Singed practice starts offline with the selected kit and retains it on reset and reload', async ({

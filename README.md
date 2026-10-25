@@ -4,7 +4,7 @@ A minimalist, two-player browser duel with level-18 Zed or Singed, full champion
 
 ## Play on GitHub Pages
 
-Deploy this repository’s project page at **https://maxlsb.github.io/zed-duel/** without changing the portfolio. Players create a duel and share an invite; PeerJS connects their browsers and one player hosts the match. No hosted Node game server is required. See [Pages setup and hosting details](docs/github-pages.md).
+Deploy this repository’s project page at **https://maxlsb.github.io/zed-duel/** without changing the portfolio. Players create a duel and share an invite; Cloudflare handles room signaling and supplies temporary TURN relay credentials; one player’s browser hosts the match. The Cloudflare Worker and TURN key must be configured before publishing this build. No hosted Node game server is required. See [Pages setup and hosting details](docs/github-pages.md).
 
 ## Run
 
@@ -105,7 +105,7 @@ npm run test:browser
 
 For an installed Chrome browser, use `PLAYWRIGHT_CHANNEL=chrome npm run test:browser`. The browser tests start their own server on port 3100 and save screenshots in `test-results/`.
 
-Before the Singed addition, validation included 50 combat/protocol/replay/transport/session tests, twelve LAN browser scenarios and three Pages browser scenarios using independent Chrome contexts. These cover joining, readiness, room capacity, stale commands, damage synchronization, disconnects, rematch resets, key rebinding, attack-move, stopping right-click movement with Control held and ultimate follow-up attacks, killcam playback, match statistics, narrow layouts, and solo practice. The Pages deployment adds tests for browser-hosted rooms and real WebRTC between browser contexts. A real second device on a different internet connection has not been tested.
+The automated checks cover combat, protocol validation, browser-hosted sessions, Node/LAN duels and Cloudflare room signaling. Browser tests exercise room codes, invitations, a full duel and rematch, champion selection, offline practice, timeouts, retry/cancel, disconnects and guest rejoining. Local Cloudflare tests deliberately bypass external TURN; passing them does not prove that the deployed relay works across different networks. See [Cloudflare setup and relay validation](docs/github-pages.md).
 
 The Singed branch adds combat/protocol, connection and in-memory room checks, plus four Playwright scenarios for character selection, mixed rooms and solo practice across the Node and Pages transports. See [the validation notes](docs/singed.md#validation) for what was run in the implementation environment.
 

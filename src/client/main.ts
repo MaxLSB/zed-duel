@@ -9,7 +9,7 @@ import { icon } from './icons';
 import { Connection } from './network';
 import { Renderer } from './renderer';
 import { duration, matchSummary } from './match-summary';
-import type { ChampionId, GameState, PlayerId, RoomState } from '../shared/types';
+import type { ChampionId, ClientMessage, GameState, PlayerId, RoomState } from '../shared/types';
 
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 const basePath = import.meta.env.BASE_URL;
@@ -80,6 +80,12 @@ let overlayContent = '',
 let invite = new URLSearchParams(location.search).get('room')?.toUpperCase() ?? '';
 if (!/^[A-Z0-9]{6}$/.test(invite)) invite = '';
 let solo = new URLSearchParams(location.search).has('practice');
+let lastConnectionRequest: ClientMessage | null = null;
+
+function connect(message: ClientMessage) {
+  lastConnectionRequest = message;
+  connection.send(message);
+}
 let selectedChampion: ChampionId =
   new URLSearchParams(location.search).get('champion') === 'singed' ? 'singed' : 'zed';
 let displayedChampion: ChampionId | null = null;
@@ -279,8 +285,8 @@ connection.addEventListener('connection', (event) => {
   $('#connection').title = online ? 'Connected' : 'Disconnected';
   if (online) {
     showLobby();
-    if (solo) connection.send({ type: 'practice', champion: selectedChampion });
-    else if (invite) connection.send({ type: 'join', code: invite, champion: selectedChampion });
+    if (solo) connect({ type: 'practice', champion: selectedChampion });
+    else if (invite) connect({ type: 'join', code: invite, champion: selectedChampion });
   } else {
     renderer.clear();
     $('#killcam-bar').hidden = true;
@@ -289,11 +295,18 @@ connection.addEventListener('connection', (event) => {
     );
   }
 });
-connection.addEventListener('connecting', () =>
+connection.addEventListener('connecting', (event) => {
   overlay(
-    '<div class="lobby-card"><h2>Connecting…</h2><button id="leave" class="secondary">Cancel</button></div>',
-  ),
-);
+    '<div class="lobby-card"><h2>Connecting…</h2><p id="connection-progress"></p><button id="cancel-connect" class="secondary">Cancel</button></div>',
+  );
+  $('#connection-progress').textContent = (event as CustomEvent<string>).detail;
+});
+connection.addEventListener('connection-failed', (event) => {
+  overlay(
+    '<div class="lobby-card"><h2>Connection failed</h2><p id="connection-error" role="alert"></p><button id="retry-connect" class="primary">Try again</button><button id="cancel-connect" class="secondary">Back</button></div>',
+  );
+  $('#connection-error').textContent = (event as CustomEvent<string>).detail;
+});
 connection.addEventListener('state', (event) => renderRoom((event as CustomEvent<RoomState>).detail));
 connection.addEventListener('incompatible-server', () => {
   renderer.clear();
@@ -341,19 +354,20 @@ document.addEventListener('click', (event) => {
     renderer.killcam.skip();
     if (connection.room) renderRoom(connection.room);
   }
-  if (button.id === 'create-room') connection.send({ type: 'create', champion: selectedChampion });
-  if (button.id === 'practice') connection.send({ type: 'practice', champion: selectedChampion });
+  if (button.id === 'create-room') connect({ type: 'create', champion: selectedChampion });
+  if (button.id === 'practice') connect({ type: 'practice', champion: selectedChampion });
   if (button.id === 'reset-practice' || button.id === 'practice-again')
     connection.send({ type: 'reset-practice' });
   if (button.id === 'ready') connection.send({ type: 'ready' });
   if (button.id === 'copy-room' || button.id === 'copy-card') void copyInvite();
-  if (button.id === 'leave') connection.send({ type: 'leave' });
+  if (button.id === 'leave' || button.id === 'cancel-connect') connection.send({ type: 'leave' });
+  if (button.id === 'retry-connect' && lastConnectionRequest) connect(lastConnectionRequest);
   if (button.id === 'reconnect') location.reload();
 });
 $('#overlay').addEventListener('submit', (event) => {
   event.preventDefault();
   if ((event.target as HTMLFormElement).id === 'join-form')
-    connection.send({
+    connect({
       type: 'join',
       code: $<HTMLInputElement>('#room-code').value.trim().toUpperCase(),
       champion: selectedChampion,

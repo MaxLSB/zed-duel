@@ -1,56 +1,75 @@
-# GitHub Pages and browser-hosted duels
+# GitHub Pages, Cloudflare and browser-hosted duels
 
-After deployment, the game will be available at **https://maxlsb.github.io/zed-duel/**. This is the `zed-duel` repository's project site. The workflow does not touch `MaxLSB.github.io`, create a `CNAME`, or deploy to the portfolio's root.
+The project site is **https://maxlsb.github.io/zed-duel/**. The Pages workflow publishes only this repository’s `/zed-duel/` site; it does not modify the portfolio repository or its root page.
 
-## One-time setup
+## Architecture
 
-1. Make **MaxLSB/zed-duel** public if using GitHub Free.
-2. In **zed-duel → Settings → Pages**, set **Source** to **GitHub Actions**.
-3. Merge the deployment PR into `main`. The **Test and deploy game to Pages** workflow tests the game, builds `dist/` and publishes this repository's Pages artifact. PRs run checks only; they never publish.
-4. Open the project URL, choose **Create a duel**, and send **Copy invite** to your friend. Your friend can also open the page and enter the six-character room code. Both click **Ready to duel**.
+One player’s browser runs the combat simulation in a Web Worker at 60 Hz and sends state at 20 Hz. The guest sends inputs over a WebRTC data channel. Both Zed and Singed, practice, rematches and killcam use the existing simulation.
 
-No Node game server or paid hosting account is needed for this mode. Keep the host tab and computer open during the match. Closing the host ends the room; guests can leave and rejoin an existing host, but an interrupted duel resets. Solo practice runs locally and does not contact the connection service.
+A Cloudflare Worker and a SQLite-backed Durable Object per room coordinate room codes, membership and WebRTC negotiation. They do not run the simulation or carry game state. Cloudflare TURN relays encrypted traffic when a direct browser connection cannot be established. The Worker exchanges a private TURN API token for temporary credentials and sends them only to admitted room members. The private token is never included in the Pages build.
 
-## How it works
+This replaces PeerJS, whose free TURN service was [discontinued](https://github.com/orgs/peers/discussions/1172). The old client still listed retired relay addresses. Testing two browser contexts on one computer did not exercise that missing fallback.
 
-The host runs the same combat simulation in a Web Worker at 60 Hz and sends state at 20 Hz over a WebRTC data channel. The guest sends inputs to the host. Room capacity, ready state, cooldowns, damage and rematches are resolved by the host. As with other player-hosted games, the host is trusted and has a latency advantage; this is not cheat-resistant dedicated-server hosting.
+The host must keep the tab and computer open. Closing the host ends the room; a guest can rejoin an existing host, resetting the duel. Connections time out after 25 seconds with a persistent error and retry/back controls. Rooms and relay credentials last at most four hours; create a fresh room after expiry. Solo practice does not contact Cloudflare.
 
-PeerJS's free cloud PeerServer handles signaling: it helps browsers establish the connection. The pinned PeerJS client supplies public STUN and TURN defaults; TURN can relay traffic on networks that cannot connect directly. These third-party services must be reachable, and their free availability is not guaranteed. The page reports failed connections and lets players retry. Some corporate networks and VPNs can still prevent WebRTC connections.
+## Required setup before merging/publishing
 
-Sources: [GitHub project sites](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages), [PeerJS connection setup](https://peerjs.com/client/getting-started), [WebRTC peer connections](https://webrtc.org/getting-started/peer-connections).
+1. Create a Cloudflare account and sign in with `npx wrangler login`. No domain transfer or change to GitHub Pages is required.
+2. In Cloudflare **Realtime → TURN**, create a key named `zed-duel`. Keep the key ID and API token private.
+3. From this repository, deploy the room service:
 
-## Local preview
+   ```sh
+   npm ci
+   npm run check
+   npm run signal:deploy
+   ```
+
+   Wrangler creates `zed-duel-signal` and prints its `https://zed-duel-signal.<account-subdomain>.workers.dev` URL. Its allowed origin is `https://maxlsb.github.io`. It refuses production room creation until the TURN secrets are configured.
+
+4. Store the two TURN values using Wrangler’s prompts. Do not paste them into chat, shell commands, GitHub variables or tracked files:
+
+   ```sh
+   npx wrangler secret put TURN_KEY_ID --env=""
+   npx wrangler secret put TURN_API_TOKEN --env=""
+   ```
+
+5. In **GitHub → zed-duel → Settings → Secrets and variables → Actions → Variables**, set **VITE_SIGNAL_URL** to the Worker’s HTTPS URL. This URL is public and contains no credentials. The former `VITE_PEER_SERVER_URL` and `VITE_ICE_SERVERS` variables are no longer used.
+6. Keep **Settings → Pages → Source** set to **GitHub Actions**. Merge the PR after validation. The workflow checks and publishes the frontend from `main`; it does not deploy the Worker. Future Worker changes must also be deployed with `npm run signal:deploy`.
+
+Cloudflare login alone does not deploy the Worker or configure TURN. Missing production TURN configuration fails explicitly instead of silently falling back to direct-only connections. The Pages publication job also refuses a missing `VITE_SIGNAL_URL` so merging cannot silently publish a build with multiplayer disabled.
+
+## Cost and scope
+
+SQLite Durable Objects are available on the Workers Free plan, subject to daily limits. Cloudflare Realtime TURN includes 1,000 GB of monthly egress shared with SFU, then charges $0.05/GB. This is not an unlimited-free service. Account activation and billing requirements are controlled by Cloudflare; the repository does not change account plans.
+
+The Worker accepts requests from the game’s origin, limits new connection requests per IP, reserves a separate random host token, permits one guest, and limits signaling size and rate. Origin checks are a browser boundary, not account authentication; monitor usage if sharing the game publicly. Host authority remains trusted, so this is a casual game between friends, not cheat-resistant dedicated-server hosting.
+
+Sources: [Durable Objects pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/), [Realtime pricing](https://developers.cloudflare.com/realtime/sfu/platform/pricing/), [TURN credential generation](https://developers.cloudflare.com/realtime/turn/generate-credentials/).
+
+## Local development
+
+The existing `npm run dev` still runs the Node/LAN version. For the Cloudflare version, start two terminals:
 
 ```sh
-npm ci
-npm run dev:peer
+npm run signal:dev
 ```
-
-For the exact production path:
 
 ```sh
-npm run build:pages
-npx vite preview --base=/zed-duel/
+VITE_SIGNAL_URL=http://127.0.0.1:3190 npm run dev:peer -- --host 127.0.0.1 --port 3180
 ```
 
-Open the printed address with `/zed-duel/` appended. The existing `npm run dev` command still runs the Node-hosted LAN version. `npm start` continues to serve a regular `npm run build` build from the Node server.
-
-## Optional connection-service configuration
-
-The defaults need no repository secrets or variables. To use your own PeerServer, set the repository Actions variable **VITE_PEER_SERVER_URL** to its public HTTPS URL, including its path, such as `https://signal.example.com/peer`. It must support PeerJS's default `peerjs` key.
-
-**VITE_ICE_SERVERS** optionally replaces the client's ICE configuration with a JSON array of `RTCIceServer` entries. Only use credentials intended for distribution to browsers: every `VITE_` value is public in the compiled frontend. Private or permanent TURN credentials must not be put into the repository or Pages build; use a separately managed short-lived credential mechanism if your provider requires one.
-
-For local overrides use `.env.pages.local` (ignored by Git). Rebuild/re-run the Pages workflow after changing repository variables. The test suite uses its own local PeerServer and no external STUN/TURN so CI does not depend on the free public service.
+Open **http://127.0.0.1:3180/**. The `test` Worker environment deliberately uses no external relay; it is for local development only. Never deploy that environment for remote play. `.wrangler/`, `.dev.vars*` and `.env.*.local` are ignored by Git.
 
 ## Validation
 
 ```sh
+npm run check
 npm test
 npm run test:browser
 npm run test:pages
+npx wrangler deploy --env="" --dry-run
 ```
 
-The Pages suite builds real static files under `/zed-duel/`, then exercises two browser contexts over actual WebRTC, a complete duel and rematch, a full-room rejection, host departure, unavailable rooms, offline practice and project-path navigation. Browser tests require `npx playwright install chromium`, or an installed Chrome with `PLAYWRIGHT_CHANNEL=chrome`.
+The Pages suite builds the real `/zed-duel/` frontend and runs the Worker locally using Wrangler. It exercises actual WebRTC, a complete duel and rematch, both champions, manual codes, invite links, capacity rejection, host departure, guest replacement, unavailable rooms, blocked peer connections, retry/cancel, offline practice and project-path navigation. Browser tests need `npx playwright install chromium`, or an installed Chrome with `PLAYWRIGHT_CHANNEL=chrome`.
 
-Passing local tests does not establish connectivity between every pair of remote networks. After publishing, test the invite with your friend on a separate internet connection.
+After deploying and configuring secrets, verify relay-only connectivity as well as normal connectivity. With Playwright, install an initialization script in both test contexts before loading the page that subclasses `RTCPeerConnection` and passes `iceTransportPolicy: 'relay'` to its constructor. Start a duel and inspect `getStats()` to confirm the selected candidate pair uses relay candidates. Then test an invite with two physical computers on different internet connections. Do not treat local tests or a successful Worker deploy as proof of live TURN connectivity.
