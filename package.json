@@ -9,15 +9,20 @@
     "build": "tsc --noEmit && vite build",
     "check": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "dev:peer": "vite --mode pages --host 0.0.0.0",
+    "build:pages": "tsc --noEmit && vite build --mode pages --base=/zed-duel/",
+    "test:pages": "playwright test --config playwright.pages.config.ts"
   },
   "dependencies": {
+    "peerjs": "1.5.5",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.51.0",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.5.0",
+    "peer": "1.0.2",
     "prettier": "^3.9.10",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0",

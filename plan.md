@@ -149,4 +149,18 @@ README.md        setup, controls, LAN/online instructions, known differences
 - [x] Complete automated combat, transport and two-browser checks, production build and launch documentation.
 - [ ] Compare edge-case timings and disputed constants against the League client.
 - [ ] Add client movement prediction/reconciliation and latency compensation.
-- [ ] Verify on two physical devices and deploy an internet-accessible room server.
+- [ ] Verify on two physical devices over separate internet connections; browser-hosted Pages deployment supersedes the internet room-server plan.
+
+## GitHub Pages deployment PR
+
+- Target `main` only; leave `feat/singed` and the portfolio repository untouched.
+- Publish only this repository’s `/zed-duel/` project site after merge, through GitHub Actions.
+- Browser-hosted authoritative simulation in a Web Worker, with PeerJS signaling and WebRTC data channels.
+- Preserve Node/LAN mode, gameplay, controls, rematches and killcam.
+- Solo practice runs without a game server or signaling service.
+- Validate static subpath navigation, two-browser peer duels, connection failures and session cleanup.
+
+- [x] Implement browser hosting, signaling, project-path navigation and Pages CI.
+- [x] Pass 50 unit/session tests, 12 LAN browser scenarios and 3 Pages browser scenarios.
+- [x] Connect two browser contexts through the default public PeerJS service and start a duel.
+- [ ] Enable GitHub Pages, merge the PR and verify the published invite on separate internet connections.
