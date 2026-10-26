@@ -161,7 +161,7 @@ function showLobby() {
   }
   $('#clock').textContent = '00:00';
   document.querySelectorAll('.ability').forEach((slot) => {
-    slot.classList.remove('on-cooldown', 'recast', 'ability-active', 'charge-window');
+    slot.classList.remove('on-cooldown', 'recast', 'ability-active', 'charge-window', 'passive-counter');
     slot.removeAttribute('aria-pressed');
     slot.querySelector('.cooldown')!.textContent = '';
   });
@@ -273,7 +273,7 @@ function renderHUD(game: GameState, room: RoomState) {
     else slot.removeAttribute('aria-pressed');
     slot.querySelector('.cooldown')!.textContent =
       key === 'passive' && p.ahri
-        ? `${p.ahri.essenceHits}/${AHRI_PASSIVE.hits}`
+        ? `${p.ahri.essenceHits ?? 0}/${AHRI_PASSIVE.hits}`
         : rush
           ? `${p.ahri!.rushCharges} · ${Math.ceil(p.ahri!.rushUntil - game.time)}s`
           : active
@@ -290,6 +290,7 @@ function renderHUD(game: GameState, room: RoomState) {
     slot.classList.toggle('on-cooldown', remaining > 0 && !shadow && !active);
     slot.classList.toggle('recast', !!shadow || !!rush);
     slot.classList.toggle('charge-window', !!rush);
+    slot.classList.toggle('passive-counter', key === 'passive' && !!p.ahri);
   }
 }
 renderer.onReplayFrame = (game) => {

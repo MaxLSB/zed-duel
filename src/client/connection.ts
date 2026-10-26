@@ -1,4 +1,5 @@
 import { isChampion } from '../shared/protocol';
+import { AHRI_PASSIVE } from '../shared/ahri-balance';
 import type { ClientMessage, Input, PlayerId, RoomState, ServerMessage } from '../shared/types';
 
 export abstract class GameConnection extends EventTarget {
@@ -30,9 +31,18 @@ export abstract class GameConnection extends EventTarget {
       if (
         !Array.isArray(game.zones) ||
         !Array.isArray(game.ahriMissiles) ||
-        !game.players.every((p) => isChampion(p.champion) && (p.champion !== 'ahri' || !!p.ahri))
+        !game.players.every(
+          (p) =>
+            isChampion(p.champion) &&
+            (p.champion !== 'ahri' ||
+              (!!p.ahri &&
+                Number.isInteger(p.ahri.essenceHits) &&
+                p.ahri.essenceHits >= 0 &&
+                p.ahri.essenceHits < AHRI_PASSIVE.hits)),
+        )
       ) {
         this.room = null;
+        this.prediction?.clear();
         if (!this.incompatibleServer) this.emit('incompatible-server', null);
         this.incompatibleServer = true;
         return;

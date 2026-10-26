@@ -76,6 +76,25 @@ test('old server snapshots show a restart message instead of reaching and crashi
     receive(previousRelease);
     assert.equal(mismatches, 3);
     assert.equal(connection.room, null);
+    // An Ahri server from before the passive change has no essenceHits field.
+    for (const hits of [undefined, null, '1', -1, 3, 0.5]) {
+      receive({ ...room, game: ahri.state });
+      const before: number = states.length;
+      const stale = JSON.parse(JSON.stringify({ ...room, game: ahri.state }));
+      if (hits === undefined) delete stale.game.players[0].ahri.essenceHits;
+      else stale.game.players[0].ahri.essenceHits = hits;
+      const previousMismatches: number = mismatches;
+      receive(stale);
+      receive(stale);
+      assert.equal(mismatches, previousMismatches + 1);
+      assert.equal(states.length, before);
+      assert.equal(connection.room, null);
+    }
+    for (const hits of [0, 1, 2]) {
+      ahri.state.players[0].ahri!.essenceHits = hits;
+      receive({ ...room, game: ahri.state });
+      assert.equal(connection.room!.game.players[0].ahri!.essenceHits, hits);
+    }
   } finally {
     for (const [key, descriptor] of [
       ['window', originalWindow],

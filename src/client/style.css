@@ -521,6 +521,16 @@ canvas {
   font-size: 11px;
   white-space: nowrap;
 }
+.passive-counter .cooldown {
+  right: 3px;
+  bottom: 3px;
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: #172225;
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
 .tooltip {
   display: none;
   position: absolute;
