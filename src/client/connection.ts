@@ -1,3 +1,4 @@
+import { isChampion } from '../shared/protocol';
 import type { ClientMessage, Input, PlayerId, RoomState, ServerMessage } from '../shared/types';
 
 export abstract class GameConnection extends EventTarget {
@@ -28,7 +29,8 @@ export abstract class GameConnection extends EventTarget {
       const game = message.room.game;
       if (
         !Array.isArray(game.zones) ||
-        !game.players.every((p) => p.champion === 'zed' || p.champion === 'singed')
+        !Array.isArray(game.ahriMissiles) ||
+        !game.players.every((p) => isChampion(p.champion) && (p.champion !== 'ahri' || !!p.ahri))
       ) {
         this.room = null;
         if (!this.incompatibleServer) this.emit('incompatible-server', null);

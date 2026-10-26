@@ -2,6 +2,7 @@ import { championStats, championSpells } from '../shared/champions';
 import { SINGED_SPELLS } from '../shared/singed-balance';
 import { bounded, towards } from '../shared/geometry';
 import { SingedEffects } from './singed-effects';
+import { AhriEffects } from './ahri-effects';
 import { ARENA, SPELLS } from '../shared/balance';
 import { clamp, distance, lerp } from '../shared/geometry';
 import type { GameState, PlayerId, PlayerState, Vec } from '../shared/types';
@@ -15,6 +16,7 @@ export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private ultimateEffects: UltimateEffects;
   private singedEffects: SingedEffects;
+  private ahriEffects: AhriEffects;
   private current: GameState | null = null;
   private previous: GameState | null = null;
   private received = 0;
@@ -33,6 +35,7 @@ export class Renderer {
     this.ctx = canvas.getContext('2d')!;
     this.ultimateEffects = new UltimateEffects(this.ctx);
     this.singedEffects = new SingedEffects(this.ctx);
+    this.ahriEffects = new AhriEffects(this.ctx);
     new ResizeObserver(() => this.resize()).observe(canvas);
     this.resize();
     requestAnimationFrame(this.frame);
@@ -151,6 +154,7 @@ export class Renderer {
         const pos = distance(before, after) < 100 ? lerp(before, after, alpha) : p.pos;
         this.playerBody(p, pos, now);
       }
+      this.ahriEffects.missiles(s, COLORS);
       for (const q of s.projectiles) {
         const travel =
           s.phase === 'finished' ? 0 : Math.min(q.remaining, Math.max(0, now - s.time) * SPELLS.q.speed);
@@ -282,7 +286,9 @@ export class Renderer {
       : 0;
     const body = { x: pos.x, y: pos.y - height };
     if (p.singed) this.singedEffects.body(p, body, now, color);
+    else if (p.ahri) this.ahriEffects.body(p, body, now, color);
     else this.ninja(body, p.facing, color, p.hp <= 0 ? 0.2 : 1);
+    if (p.charm && p.charm.until > now) this.ahriEffects.charm(body);
     if (p.rootUntil > now) {
       c.strokeStyle = '#c6df74';
       c.lineWidth = 4;

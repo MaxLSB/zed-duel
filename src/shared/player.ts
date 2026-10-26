@@ -24,6 +24,8 @@ export class Player implements PlayerState {
   shadows: PlayerState['shadows'] = [];
   mark: PlayerState['mark'] = null;
   singed: PlayerState['singed'];
+  ahri: PlayerState['ahri'];
+  charm: PlayerState['charm'] = null;
   poison: PlayerState['poison'] = null;
   grievousUntil = 0;
   rootUntil = 0;
@@ -34,6 +36,20 @@ export class Player implements PlayerState {
     public champion: ChampionId = 'zed',
   ) {
     this.hp = championStats(champion).hp;
+    this.ahri =
+      champion === 'ahri'
+        ? {
+            hasteUntil: 0,
+            fires: 0,
+            fireAt: 0,
+            fireUntil: 0,
+            fireHits: 0,
+            rushUntil: 0,
+            rushCharges: 0,
+            rushAt: 0,
+            dash: null,
+          }
+        : null;
     this.singed =
       champion === 'singed' ? { poisonOn: false, cloudAt: 0, slipstreamUntil: 0, insanityUntil: 0 } : null;
     this.pos = { x: id === 0 ? 500 : 1900, y: 700 };

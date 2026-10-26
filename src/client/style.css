@@ -517,6 +517,10 @@ canvas {
 .recast .ability-icon {
   opacity: 0.2;
 }
+.charge-window .cooldown {
+  font-size: 11px;
+  white-space: nowrap;
+}
 .tooltip {
   display: none;
   position: absolute;

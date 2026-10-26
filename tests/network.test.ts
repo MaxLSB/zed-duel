@@ -65,6 +65,17 @@ test('old server snapshots show a restart message instead of reaching and crashi
     receive(old);
     assert.equal(mismatches, 2);
     assert.equal(connection.room, null);
+    const ahri = new Game(null, ['ahri', 'singed']);
+    ahri.start(0);
+    receive({ ...room, game: ahri.state });
+    assert.equal(connection.room!.game.players[0].champion, 'ahri');
+    assert.ok(connection.room!.game.players[0].ahri);
+    // The preceding Singed release also lacks the new missile array.
+    const previousRelease = JSON.parse(JSON.stringify(room));
+    delete previousRelease.game.ahriMissiles;
+    receive(previousRelease);
+    assert.equal(mismatches, 3);
+    assert.equal(connection.room, null);
   } finally {
     for (const [key, descriptor] of [
       ['window', originalWindow],

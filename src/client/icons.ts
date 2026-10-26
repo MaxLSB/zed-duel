@@ -1,4 +1,11 @@
 export const icons: Record<string, string> = {
+  'ahri-passive': '<path d="M12 3C4 9 4 13 12 21c8-8 8-12 0-18Z"/><path d="M8 12h8m-4-4v8"/>',
+  'ahri-q':
+    '<circle cx="12" cy="12" r="5"/><path d="M3 9a9 9 0 0 1 16-3m2 9a9 9 0 0 1-16 3M19 2v4h-4M5 22v-4h4"/>',
+  'ahri-w':
+    '<path d="M12 3c-6 7-5 9 0 11 5-2 6-4 0-11ZM5 11c-5 6-4 8 0 10 4-2 5-4 0-10Zm14 0c-5 6-4 8 0 10 4-2 5-4 0-10Z"/>',
+  'ahri-e': '<path d="M12 21 3 12C-2 5 7-1 12 6c5-7 14-1 9 6Z"/>',
+  'ahri-r': '<path d="m3 5 6 7-6 7m6-14 6 7-6 7m6-14 6 7-6 7"/>',
   'singed-passive': '<path d="M3 7h11m-9 5h15M3 17h11m2-13 4 3-4 3m1 4 4 3-4 3"/>',
   'singed-q':
     '<path d="M8 18a4 4 0 1 1-3-7 5 5 0 0 1 9-5 4 4 0 1 1 5 7 4 4 0 0 1-4 6"/><circle cx="10" cy="11" r="1"/><path d="m9 16 5-2"/>',
