@@ -87,12 +87,6 @@ export class SingedEffects {
       c.beginPath();
       c.arc(Math.cos(end) * 86, Math.sin(end) * 86, 4, 0, Math.PI * 2);
       c.fill();
-      c.fillStyle = '#11191d';
-      c.fillRect(-24, -145, 48, 25);
-      c.fillStyle = tint;
-      c.font = '18px ui-monospace, monospace';
-      c.textAlign = 'center';
-      c.fillText(`${Math.ceil(potionLeft)}s`, 0, -126);
     }
     if (p.singed!.slipstreamUntil > now) {
       c.strokeStyle = color;

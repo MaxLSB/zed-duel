@@ -37,9 +37,9 @@ The same bindings, movement, input buffer, Flash, killcam and resets apply. Defa
 | R | Drink Insanity Potion |
 | D | Flash toward the cursor |
 
-Noxious Slipstream activates near the opponent. Poison clouds linger after toggling off; overlapping clouds do not stack damage. Adhesive slows and grounds enemies, preventing Flash and Zed's R and shadow swaps. Fling briefly knocks the opponent airborne. The potion boosts stats and makes poison reduce healing. Active poison and potion duration are visible in the HUD. During the ultimate, a shrinking ring and overhead seconds label show the remaining time to both players; they turn amber for the final three seconds.
+Noxious Slipstream activates near the opponent. Poison clouds linger after toggling off; overlapping clouds do not stack damage. Adhesive slows and grounds enemies, preventing Flash and Zed's R and shadow swaps. Fling briefly knocks the opponent airborne. The potion boosts stats and makes poison reduce healing. Active poison and potion duration are visible in the HUD. During the ultimate, a shrinking ring shows the remaining time to both players and turns amber for the final three seconds.
 
-Like Zed, Singed has no resource costs, Q/W/E cooldowns divided by three, and 10-second passive/R/Flash cooldowns. Potion lasts 10 seconds, with its 10-second cooldown starting on cast, so R is ready again when the buff ends. Bonuses never stack. Each champion uses its own health, defenses, regeneration and attack timing. Shared keybindings remain saved in the same browser settings. See [Singed combat notes](docs/singed.md) for researched values, sources and approximations.
+Like Zed, Singed has no resource costs, Q/W/E cooldowns divided by three, and 10-second passive/R/Flash cooldowns. Potion lasts 10 seconds, followed by a 10-second cooldown that starts when the buff ends. Bonuses never stack. Each champion uses its own health, defenses, regeneration and attack timing. Shared keybindings remain saved in the same browser settings. See [Singed combat notes](docs/singed.md) for researched values, sources and approximations.
 
 ## Ahri
 

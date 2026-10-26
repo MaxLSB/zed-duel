@@ -23,7 +23,7 @@ Fetching Riot Data Dragon's Singed JSON was unsuccessful in this environment. No
 | R | 10s of +85 AP, armor, MR, flat speed and health regeneration per 5s; poison applies 40% healing reduction | 10s |
 | D | Shared Flash, 400 units | 10s |
 
-These cooldowns deliberately follow the existing Zed sandbox rules, including dividing Q's static toggle lockout by three. Mana is omitted. R lasts 10 seconds as a deliberate duel override, with its 10-second cooldown starting on cast. It becomes ready as the buff ends; bonuses never stack. A shrinking ring and overhead seconds label show the remaining duration to both players and turn amber for the final three seconds. The HUD also retains its numeric countdown. There is no mana regeneration to apply. Buffed health regeneration is +17 HP/second, before healing reduction.
+These cooldowns deliberately follow the existing Zed sandbox rules, including dividing Q's static toggle lockout by three. Mana is omitted. R lasts 10 seconds as a deliberate duel override, followed by a 10-second cooldown starting when the buff ends (20 seconds between casts). Bonuses never stack. A shrinking ring shows the remaining duration to both players and turns amber for the final three seconds. The HUD also retains its numeric countdown. There is no mana regeneration to apply. Buffed health regeneration is +17 HP/second, before healing reduction.
 
 Q deals 15 + 10.625% AP per tick. Overlapping clouds from one caster refresh poison without multiplying ticks. E deals 90 + 8% target maximum HP + 55% AP as magic damage. Damage uses the defender's champion stats and potion defenses; Zed's passive also uses the defender's actual maximum health. Singed has no Zed attack passive, shurikens or shadows.
 
