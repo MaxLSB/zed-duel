@@ -64,6 +64,8 @@ export class Game {
   }
 
   selectChampion(id: PlayerId, champion: ChampionId) {
+    // A post-match pick opens a fresh lobby without replacing the room or its players.
+    if (this.state.phase === 'finished') this.disconnect();
     if (this.state.phase !== 'waiting') return false;
     this.champions[id] = champion;
     this.state.players[id] = new Player(id, champion);

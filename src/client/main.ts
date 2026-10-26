@@ -200,7 +200,7 @@ function renderRoom(room: RoomState) {
   } else if (game.phase === 'finished') {
     const title = game.winner === 'draw' ? 'Draw' : game.winner === me ? 'Victory' : 'Defeat';
     overlay(
-      `<div class="lobby-card result"><h2>${title}</h2>${matchSummary(game, me, practice)}<button id="ready" class="primary" ${ready[me] ? 'disabled' : ''}>${ready[me] ? 'Waiting for opponent…' : 'Rematch'} ${icon('arrow')}</button><small>${ready[1 - me] ? 'Opponent ready' : 'Rematch requires both players.'}</small></div>`,
+      `<div class="lobby-card result"><h2>${title}</h2>${matchSummary(game, me, practice)}${championPicker(game.players[me].champion)}<button id="ready" class="primary" ${ready[me] ? 'disabled' : ''}>${ready[me] ? 'Waiting for opponent…' : 'Rematch'} ${icon('arrow')}</button><small>${ready[1 - me] ? 'Opponent ready' : 'Rematch requires both players.'}</small></div>`,
     );
   } else {
     overlay(

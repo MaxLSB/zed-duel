@@ -15,7 +15,7 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:3000**, create a duel, and share the room code. The server prints its LAN address. On another computer on the same network, open that LAN address and join the room. A `localhost` invite only works on the host computer; replace that hostname with the printed LAN IP when sharing it. Each player chooses **Zed**, **Singed** or **Ahri**, then both click **Ready to duel**. You can change your champion in the waiting room; changing a pick clears both ready flags. Choices are locked during a round and kept for rematches.
+Open **http://localhost:3000**, create a duel, and share the room code. The server prints its LAN address. On another computer on the same network, open that LAN address and join the room. A `localhost` invite only works on the host computer; replace that hostname with the printed LAN IP when sharing it. Each player chooses **Zed**, **Singed** or **Ahri**, then both click **Ready to duel**. You can change your champion in the waiting room or after each match using the results-screen picker. A post-match change opens a fresh lobby in the same room and clears both ready flags. Choices are locked during a round and kept for rematches.
 
 You can also test with two browser tabs. The second tab can open the first tab's invite URL.
 
@@ -37,7 +37,7 @@ The same bindings, movement, input buffer, Flash, killcam and resets apply. Defa
 | R | Drink Insanity Potion |
 | D | Flash toward the cursor |
 
-Noxious Slipstream activates near the opponent. Poison clouds linger after toggling off; overlapping clouds do not stack damage. Adhesive slows and grounds enemies, preventing Flash and Zed's R and shadow swaps. Fling briefly knocks the opponent airborne. The potion boosts stats and makes poison reduce healing. Active poison and potion are highlighted in the HUD. R shows no countdown while active; its cooldown countdown appears after the buff ends. During the ultimate, a shrinking ring shows the remaining time to both players and turns amber for the final three seconds.
+Singed has 355 base movement speed. Noxious Slipstream activates within 325 units of the opponent. Poison clouds linger after toggling off; overlapping clouds do not stack damage. Adhesive slows and grounds enemies, preventing Flash and Zed's R and shadow swaps. Fling briefly knocks the opponent airborne. The potion boosts stats and makes poison reduce healing. Active poison and potion are highlighted in the HUD. R shows no countdown while active; its cooldown countdown appears after the buff ends. During the ultimate, a shrinking ring shows the remaining time to both players and turns amber for the final three seconds.
 
 Like Zed, Singed has no resource costs, Q/W/E cooldowns divided by three, and 10-second passive/R/Flash cooldowns. Potion lasts 10 seconds, followed by a 10-second cooldown that starts when the buff ends. Bonuses never stack. Each champion uses its own health, defenses, regeneration and attack timing. Shared keybindings remain saved in the same browser settings. See [Singed combat notes](docs/singed.md) for researched values, sources and approximations.
 
@@ -111,7 +111,7 @@ docs/combat.md           Sources and fidelity notes
 
 E deals damage only once per cast, even when Zed and both shadows hit. R can return to its shadow immediately after landing, with no extra recast delay.
 
-The ultimate hides Zed and his overhead health bar during its untargetable approach, with smoke, a shadow streak, a reappearance slash and a visible Death Mark countdown.
+The ultimate hides Zed and his overhead health bar during its untargetable approach, with smoke, a shadow streak, a reappearance slash and a pulsing Death Mark cross without an overhead countdown.
 
 The simulation runs at 60 Hz and broadcasts at 20 Hz. Rendering interpolates positions and snaps teleports. Room state is in memory; restarting the server clears rooms. No account or database is required.
 

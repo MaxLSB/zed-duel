@@ -320,6 +320,17 @@ test('potion adds real defenses and poison AP damage, and Grievous Wounds reduce
   near(enemy.hp - hp, STATS.hpRegen * (1 - S.r.grievous) * STEP);
 });
 
+test('Slipstream triggers at its expanded range and respects the boundary', () => {
+  const game = duel(),
+    [p, enemy] = game.state.players;
+  enemy.pos = { x: p.pos.x + 326, y: p.pos.y };
+  game.step();
+  assert.equal(p.singed!.slipstreamUntil, 0);
+  enemy.pos.x = p.pos.x + 325;
+  game.step();
+  assert.ok(p.singed!.slipstreamUntil > game.state.time);
+});
+
 test('Slipstream grants temporary speed and Singed does not inherit Zed attack passive', () => {
   const game = duel(),
     [p, enemy] = game.state.players;
