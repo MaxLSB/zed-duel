@@ -7,8 +7,7 @@ export class HostedMatch {
   readonly connected: [boolean, boolean] = [true, false];
   private ready: [boolean, boolean] = [false, false];
   private seq: [number, number] = [-1, -1];
-  private ack: [number, number] = [-1, -1];
-  private inputs: { player: PlayerId; seq: number; input: Input }[] = [];
+  private inputs: { player: PlayerId; input: Input }[] = [];
   private rate = [
     { at: 0, count: 0 },
     { at: 0, count: 0 },
@@ -31,7 +30,6 @@ export class HostedMatch {
     if (this.mode !== 'duel' || this.connected[1] || !isChampion(champion)) return false;
     this.connected[1] = true;
     this.seq[1] = -1;
-    this.ack[1] = -1;
     this.rate[1] = { at: 0, count: 0 };
     this.game.selectChampion(1, champion);
     this.publish(1, { type: 'joined', code: this.code, player: 1 });
@@ -90,15 +88,12 @@ export class HostedMatch {
     }
     if (message.type === 'input' && this.game.state.phase === 'active' && message.seq > this.seq[player]) {
       this.seq[player] = message.seq;
-      if (this.inputs.length < 128) this.inputs.push({ player, seq: message.seq, input: message.input });
+      if (this.inputs.length < 128) this.inputs.push({ player, input: message.input });
     }
   }
 
   step() {
-    for (const { player, seq, input } of this.inputs) {
-      this.game.input(player, input);
-      this.ack[player] = seq;
-    }
+    for (const { player, input } of this.inputs) this.game.input(player, input);
     this.inputs = [];
     this.game.step();
   }
@@ -112,7 +107,7 @@ export class HostedMatch {
       game: this.game.state,
     };
     for (const player of [0, 1] as const)
-      if (this.connected[player]) this.publish(player, { type: 'state', room, ack: this.ack[player] });
+      if (this.connected[player]) this.publish(player, { type: 'state', room, ack: this.seq[player] });
   }
 
   private resetPractice() {

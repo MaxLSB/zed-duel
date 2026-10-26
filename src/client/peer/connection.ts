@@ -1,4 +1,3 @@
-import { MovementPrediction } from '../movement-prediction';
 import { GameConnection } from '../connection';
 import type { ChampionId, ClientMessage, PlayerId, ServerMessage } from '../../shared/types';
 import { RELAY_VERSION, type SignalMessage } from '../../shared/signaling';
@@ -88,7 +87,6 @@ export class PeerConnection extends GameConnection {
         return;
       }
       this.player = message.player;
-      this.prediction = this.player === 1 ? new MovementPrediction() : null;
       this.code = this.signaling!.code;
       if (this.player === 0) this.startHost('duel', this.code);
       else this.progress('Connecting to host…');
@@ -190,8 +188,6 @@ export class PeerConnection extends GameConnection {
     this.signaling = null;
     this.worker?.terminate();
     this.worker = null;
-    this.prediction?.clear();
-    this.prediction = null;
     this.room = null;
     this.guestJoined = false;
     this.session = '';

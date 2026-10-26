@@ -92,7 +92,7 @@ E deals damage only once per cast, even when Zed and both shadows hit. R can ret
 
 The ultimate hides Zed and his overhead health bar during its untargetable approach, with smoke, a shadow streak, a reappearance slash and a visible Death Mark countdown.
 
-The simulation runs at 60 Hz. Browser-hosted matches broadcast at 30 Hz; Node/LAN remains at 20 Hz. Rendering follows the snapshot cadence and snaps teleports. Browser guests predict their own movement and Stop immediately, replay unacknowledged commands and reconcile small corrections over 80 ms. Combat outcomes and killcam remain authoritative. Prediction freezes after 250 ms without a snapshot and yields to confirmed cast locks, roots, ultimate and airborne states; spells are not predicted. Room state is in memory; restarting the server clears rooms. No account or database is required.
+The simulation runs at 60 Hz and broadcasts at 20 Hz. Rendering interpolates positions and snaps teleports. Room state is in memory; restarting the server clears rooms. No account or database is required.
 
 ## Checks
 
@@ -124,7 +124,7 @@ This Node deployment is an alternative to the browser-hosted GitHub Pages build.
 
 - Original geometric visuals; no League assets, audio or animation rig.
 - Researched balance values, with documented source discrepancies and timing approximations. Exact League parity has not been established.
-- Browser guests have movement prediction and reconciliation. Spells and damage still wait for the host; hit lag compensation and prediction for Node/LAN clients remain follow-up work.
+- Server-authoritative movement with interpolation; client prediction, reconciliation and lag compensation are follow-up work.
 - Out-of-range Death Mark and Fling approach their target automatically. Location-targeted casts clamp to maximum range.
 - Rejoining after a lost connection starts fresh; no reconnect grace period or spectators.
 - Optional Google Fonts fall back to local system fonts offline.

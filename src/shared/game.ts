@@ -1,9 +1,8 @@
 import { championStats, potionBonus } from './champions';
-import { SINGED_SPELLS } from './singed-balance';
+import { SINGED_PASSIVE, SINGED_SPELLS } from './singed-balance';
 import { SingedKit } from './singed';
 import { PASSIVE, SPELLS, STATS, STEP } from './balance';
 import { bounded, direction, distance, segmentDistance, towards } from './geometry';
-import { movePlayer } from './movement';
 import { Player } from './player';
 import { SpellBuffer, SPELL_BUFFER_WINDOW } from './spell-buffer';
 import type { CastInput } from './spell-buffer';
@@ -192,7 +191,14 @@ export class Game {
       p.destination = distance(p.pos, enemy.pos) > attackRange ? { ...enemy.pos } : null;
       if (!p.destination && p.attackAt <= now && p.windupUntil === 0) this.attack(p, enemy);
     }
-    if (p.id !== this.stationary) movePlayer(p, this.state, dt);
+    if (!p.destination || p.windupUntil > now || p.rootUntil > now || p.id === this.stationary) return;
+    const target = p.destination;
+    p.facing = Math.atan2(target.y - p.pos.y, target.x - p.pos.x);
+    const slow = Math.max(p.slowUntil > now ? p.slow : 0, this.singed.grounded(p) ? SINGED_SPELLS.w.slow : 0);
+    const slipstream = p.singed && p.singed.slipstreamUntil > now ? 1 + SINGED_PASSIVE.speed : 1;
+    const speed = (stats.speed + potionBonus(p, now)) * slipstream * (1 - slow);
+    p.pos = bounded(towards(p.pos, target, speed * dt));
+    if (distance(p.pos, target) < 1) p.destination = null;
   }
 
   private separatePlayers() {
