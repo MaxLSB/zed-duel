@@ -1,4 +1,6 @@
 import './style.css';
+import { updateOverlay } from './overlay';
+import { ChampionSelection } from './champion-selection';
 import { CHAMPIONS, championName, championStats, championSpells } from '../shared/champions';
 import { isChampion } from '../shared/protocol';
 import { ahriDescriptions } from './ahri-abilities';
@@ -91,6 +93,8 @@ function connect(message: ClientMessage) {
 }
 const urlChampion = new URLSearchParams(location.search).get('champion');
 let selectedChampion: ChampionId = isChampion(urlChampion) ? urlChampion : 'zed';
+const championSelection = new ChampionSelection();
+let championSelectionTimeout = 0;
 let displayedChampion: ChampionId | null = null;
 function championPicker(champion: ChampionId) {
   return `<div class="champion-picker"><label for="champion-select">Champion</label><select id="champion-select">${CHAMPIONS.map((id) => `<option value="${id}" ${champion === id ? 'selected' : ''}>${championName(id)}</option>`).join('')}</select></div>`;
@@ -127,8 +131,18 @@ $('#overlay').addEventListener('change', (event) => {
   const select = event.target;
   if (!(select instanceof HTMLSelectElement) || select.id !== 'champion-select') return;
   selectedChampion = isChampion(select.value) ? select.value : 'zed';
-  if (connection.room) connection.send({ type: 'select-champion', champion: selectedChampion });
-  else {
+  if (connection.room) {
+    championSelection.choose(selectedChampion);
+    window.clearTimeout(championSelectionTimeout);
+    championSelectionTimeout = window.setTimeout(() => {
+      if (!championSelection.pending) return;
+      championSelection.clear();
+      if (connection.room) renderRoom(connection.room);
+      toast('Champion change was not confirmed. Reload both players and try again.');
+    }, 5000);
+    renderRoom(connection.room);
+    connection.send({ type: 'select-champion', champion: selectedChampion });
+  } else {
     showChampion(selectedChampion);
     showLobby();
   }
@@ -143,8 +157,7 @@ function toast(message: string) {
 function overlay(content: string) {
   if (content === overlayContent) return;
   overlayContent = content;
-  $('#overlay').innerHTML = content;
-  $('#overlay').classList.toggle('hidden', !content);
+  updateOverlay($('#overlay'), content);
 }
 function showLobby() {
   showChampion(selectedChampion);
@@ -172,6 +185,8 @@ function showLobby() {
 function renderRoom(room: RoomState) {
   const { game, connected, ready } = room,
     me = connection.player;
+  selectedChampion = championSelection.reconcile(game.players[me].champion, game.phase);
+  if (!championSelection.pending) window.clearTimeout(championSelectionTimeout);
   showChampion(game.players[me].champion);
   renderer.player = me;
   renderer.update(game);
@@ -200,11 +215,11 @@ function renderRoom(room: RoomState) {
   } else if (game.phase === 'finished') {
     const title = game.winner === 'draw' ? 'Draw' : game.winner === me ? 'Victory' : 'Defeat';
     overlay(
-      `<div class="lobby-card result"><h2>${title}</h2>${matchSummary(game, me, practice)}${championPicker(game.players[me].champion)}<button id="ready" class="primary" ${ready[me] ? 'disabled' : ''}>${ready[me] ? 'Waiting for opponent…' : 'Rematch'} ${icon('arrow')}</button><small>${ready[1 - me] ? 'Opponent ready' : 'Rematch requires both players.'}</small></div>`,
+      `<div class="lobby-card result"><h2>${title}</h2>${matchSummary(game, me, practice)}${championPicker(selectedChampion)}<button id="ready" class="primary" ${ready[me] || championSelection.pending ? 'disabled' : ''}>${championSelection.pending ? 'Updating champion…' : ready[me] ? 'Waiting for opponent…' : 'Rematch'} ${icon('arrow')}</button><small>${ready[1 - me] ? 'Opponent ready' : 'Rematch requires both players.'}</small></div>`,
     );
   } else {
     overlay(
-      `<div class="lobby-card waiting"><h2>${connected.every(Boolean) ? 'Ready to duel' : 'Waiting for opponent'}</h2><div class="room-code">${room.code}</div>${championPicker(game.players[me].champion)}<div class="player-dots"><span class="color-0"><i></i>${championName(game.players[0].champion).toUpperCase()} ${ready[0] ? '· READY' : connected[0] ? '· HERE' : '· WAITING'}</span><span class="color-1"><i></i>${championName(game.players[1].champion).toUpperCase()} ${ready[1] ? '· READY' : connected[1] ? '· HERE' : '· WAITING'}</span></div><button id="ready" class="primary" ${ready[me] ? 'disabled' : ''}>${ready[me] ? 'Waiting for opponent…' : 'Ready to duel'} ${icon('arrow')}</button><button id="copy-card" class="text-button">${icon('link')} Copy invite link</button></div>`,
+      `<div class="lobby-card waiting"><h2>${connected.every(Boolean) ? 'Ready to duel' : 'Waiting for opponent'}</h2><div class="room-code">${room.code}</div>${championPicker(selectedChampion)}<div class="player-dots"><span class="color-0"><i></i>${championName(game.players[0].champion).toUpperCase()} ${ready[0] ? '· READY' : connected[0] ? '· HERE' : '· WAITING'}</span><span class="color-1"><i></i>${championName(game.players[1].champion).toUpperCase()} ${ready[1] ? '· READY' : connected[1] ? '· HERE' : '· WAITING'}</span></div><button id="ready" class="primary" ${ready[me] || championSelection.pending ? 'disabled' : ''}>${championSelection.pending ? 'Updating champion…' : ready[me] ? 'Waiting for opponent…' : 'Ready to duel'} ${icon('arrow')}</button><button id="copy-card" class="text-button">${icon('link')} Copy invite link</button></div>`,
     );
   }
 }
@@ -349,6 +364,8 @@ connection.addEventListener('latency', () => {
   $('#latency').textContent = `${connection.latency} ms`;
 });
 connection.addEventListener('left', () => {
+  championSelection.clear();
+  window.clearTimeout(championSelectionTimeout);
   history.replaceState({}, '', basePath);
   invite = '';
   solo = false;
@@ -372,19 +389,21 @@ async function copyInvite() {
 document.addEventListener('click', (event) => {
   const button = (event.target as HTMLElement).closest('button');
   if (!button) return;
-  if (button.id === 'skip-killcam') {
+  // Rendering can reuse this element for another action during the same click.
+  const action = button.id;
+  if (action === 'skip-killcam') {
     renderer.killcam.skip();
     if (connection.room) renderRoom(connection.room);
   }
-  if (button.id === 'create-room') connect({ type: 'create', champion: selectedChampion });
-  if (button.id === 'practice') connect({ type: 'practice', champion: selectedChampion });
-  if (button.id === 'reset-practice' || button.id === 'practice-again')
+  if (action === 'create-room') connect({ type: 'create', champion: selectedChampion });
+  if (action === 'practice') connect({ type: 'practice', champion: selectedChampion });
+  if (action === 'reset-practice' || action === 'practice-again')
     connection.send({ type: 'reset-practice' });
-  if (button.id === 'ready') connection.send({ type: 'ready' });
-  if (button.id === 'copy-room' || button.id === 'copy-card') void copyInvite();
-  if (button.id === 'leave' || button.id === 'cancel-connect') connection.send({ type: 'leave' });
-  if (button.id === 'retry-connect' && lastConnectionRequest) connect(lastConnectionRequest);
-  if (button.id === 'reconnect') location.reload();
+  if (action === 'ready') connection.send({ type: 'ready' });
+  if (action === 'copy-room' || action === 'copy-card') void copyInvite();
+  if (action === 'leave' || action === 'cancel-connect') connection.send({ type: 'leave' });
+  if (action === 'retry-connect' && lastConnectionRequest) connect(lastConnectionRequest);
+  if (action === 'reconnect') location.reload();
 });
 $('#overlay').addEventListener('submit', (event) => {
   event.preventDefault();
