@@ -277,7 +277,7 @@ function renderHUD(game: GameState, room: RoomState) {
         : rush
           ? `${p.ahri!.rushCharges} · ${Math.ceil(p.ahri!.rushUntil - game.time)}s`
           : active
-            ? key === 'r'
+            ? key === 'r' || key === 'q'
               ? ''
               : 'ON'
             : shadow
