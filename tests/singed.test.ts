@@ -177,6 +177,47 @@ test('Fling approaches without spending cooldown, respects Stop, and requires a 
   assert.ok(p.cooldowns.e > game.state.time);
 });
 
+test('Fling commits at the edge of range even when the target runs away during windup', () => {
+  const game = duel(S.e.range + SINGED_STATS.radius + STATS.radius),
+    [p, enemy] = game.state.players;
+  const start = { ...enemy.pos };
+  game.input(1, { action: 'move', point: { x: 2200, y: 700 } });
+  assert.equal(cast(game, 'e'), true);
+  advance(game, 0.2);
+  assert.ok(enemy.pos.x > start.x);
+  assert.ok(enemy.pos.x - p.pos.x > S.e.range + SINGED_STATS.radius + STATS.radius);
+  assert.equal(Boolean(enemy.airborne), false);
+  advance(game, 0.1);
+  assert.ok(enemy.airborne);
+  assert.ok(enemy.airborne.from.x > start.x);
+  assert.ok(p.cooldowns.e > game.state.time);
+  near(p.stats.damageDealt, ((S.e.damage + STATS.hp * S.e.healthRatio) * 100) / (100 + STATS.mr));
+  game.input(0, { action: 'stop' });
+  const damage = p.stats.damageDealt;
+  advance(game, 0.8);
+  assert.equal(enemy.airborne, null);
+  assert.ok(enemy.pos.x < p.pos.x);
+  near(p.stats.damageDealt, damage);
+});
+
+test('Fling approach commits on reaching a fleeing target instead of repeatedly restarting the cast', () => {
+  const game = duel(400),
+    [p, enemy] = game.state.players;
+  cast(game, 'r');
+  game.input(1, { action: 'move', point: { x: 2300, y: 700 } });
+  assert.equal(cast(game, 'e'), true);
+  assert.equal(p.castUntil, 0);
+  for (let i = 0; i < 180 && p.castUntil <= game.state.time; i++) game.step();
+  assert.ok(p.castUntil > game.state.time);
+  assert.ok(p.cooldowns.e <= game.state.time);
+  const targetAtStart = enemy.pos.x;
+  advance(game, 0.3);
+  assert.ok(enemy.airborne);
+  assert.ok(enemy.airborne.from.x > targetAtStart);
+  assert.ok(p.stats.damageDealt > 0);
+  assert.ok(p.cooldowns.e > game.state.time);
+});
+
 test('Fling deals magic and max-health damage, displaces over Singed, disables casts in flight and roots on his glue', () => {
   const game = duel(),
     [p, enemy] = game.state.players;

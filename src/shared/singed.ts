@@ -70,7 +70,8 @@ export class SingedKit {
       });
     }
     if (key === 'e') {
-      // Spend the cooldown only after the target survives the cast validation.
+      // Game checked range when the windup began. Movement cannot break the grab;
+      // only interruptions or an invalid target cancel it without spending cooldown.
       p.cooldowns.e = now;
       const stamp = now + SPELLS.e.cast;
       p.castUntil = stamp;
@@ -85,9 +86,7 @@ export class SingedKit {
           p.castUntil !== stamp ||
           enemy.hp <= 0 ||
           enemy.untargetableUntil > state.time ||
-          enemy.airborne ||
-          distance(p.pos, enemy.pos) >
-            SPELLS.e.range + championStats(p.champion).radius + championStats(enemy.champion).radius
+          enemy.airborne
         )
           return;
         p.cooldowns.e = state.time + SPELLS.e.cooldown;
