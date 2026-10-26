@@ -231,21 +231,31 @@ test('Fling can be buffered behind adhesive; new movement orders cancel the buff
   }
 });
 
-test('Insanity Potion is untargeted, refreshes without stacking, and expires back to base stats', () => {
+test('Insanity Potion lasts 10 seconds, expires with its cooldown, and can be cast again without stacking', () => {
   const game = duel(800),
     p = game.state.players[0];
   p.hp = 1000;
   assert.equal(game.input(0, { action: 'cast', spell: 'r', point: p.pos }), true);
   assert.equal(p.ultimate, null);
   assert.equal(p.shadows.length, 0);
+  near(p.singed!.insanityUntil, 10);
+  near(p.cooldowns.r, 10);
   advance(game, 1);
   near(p.hp, 1000 + SINGED_STATS.hpRegen + S.r.bonus / 5);
   assert.equal(potionBonus(p, game.state.time), 85);
-  advance(game, 10);
-  cast(game, 'r');
-  near(p.singed!.insanityUntil, game.state.time + 25);
+  advance(game, 8.7);
+  assert.equal(cast(game, 'r'), false);
   assert.equal(potionBonus(p, game.state.time), 85);
-  advance(game, 25.1);
+  advance(game, 0.4);
+  assert.equal(potionBonus(p, game.state.time), 0);
+  assert.ok(p.cooldowns.r <= game.state.time);
+  const hp = p.hp;
+  advance(game, 0.2);
+  near(p.hp - hp, SINGED_STATS.hpRegen * 0.2);
+  assert.equal(cast(game, 'r'), true);
+  near(p.singed!.insanityUntil, game.state.time + 10);
+  assert.equal(potionBonus(p, game.state.time), 85);
+  advance(game, 10.1);
   assert.equal(potionBonus(p, game.state.time), 0);
 });
 

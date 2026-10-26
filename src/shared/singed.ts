@@ -116,7 +116,7 @@ export class SingedKit {
       });
     }
     if (key === 'r') {
-      // Refresh, never stack: the duel's 10s cooldown is shorter than the 25s buff.
+      // The 10s cooldown starts on cast and ends with the buff; bonuses never stack.
       kit.insanityUntil = now + SPELLS.r.duration;
       this.combat.effect('passive', p.pos, p.id);
     }

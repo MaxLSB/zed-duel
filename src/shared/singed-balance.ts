@@ -58,7 +58,7 @@ export const SINGED_SPELLS = {
     name: 'Insanity Potion',
     cooldown: 10,
     range: 0,
-    duration: 25,
+    duration: 10,
     bonus: 85,
     grievous: 0.4,
     grievousDuration: 1,
