@@ -1,6 +1,8 @@
+import type { MovementPrediction } from './movement-prediction';
 import type { ClientMessage, Input, PlayerId, RoomState, ServerMessage } from '../shared/types';
 
 export abstract class GameConnection extends EventTarget {
+  prediction: MovementPrediction | null = null;
   private seq = 0;
   private incompatibleServer = false;
   player: PlayerId = 0;
@@ -11,7 +13,9 @@ export abstract class GameConnection extends EventTarget {
   abstract send(message: ClientMessage): void;
 
   input(input: Input) {
-    this.send({ type: 'input', seq: ++this.seq, input });
+    const seq = ++this.seq;
+    this.prediction?.input(seq, input);
+    this.send({ type: 'input', seq, input });
   }
   protected emit(type: string, detail: unknown) {
     this.dispatchEvent(new CustomEvent(type, { detail }));
@@ -20,6 +24,7 @@ export abstract class GameConnection extends EventTarget {
     if (message.type === 'joined') {
       this.player = message.player;
       this.seq = 0;
+      this.prediction?.clear();
       this.emit('joined', message);
     }
     if (message.type === 'state') {
@@ -36,11 +41,13 @@ export abstract class GameConnection extends EventTarget {
         return;
       }
       this.incompatibleServer = false;
+      this.prediction?.update(game, this.player, message.ack, this.latency);
       this.room = message.room;
       this.emit('state', message.room);
     }
     if (message.type === 'error') this.emit('error', message.message);
     if (message.type === 'left') {
+      this.prediction?.clear();
       this.room = null;
       this.emit('left', null);
     }
