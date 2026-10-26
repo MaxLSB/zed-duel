@@ -9,6 +9,29 @@ async function aim(page: Page, x: number, y: number) {
   );
 }
 
+test('creating a room does not also trigger the connecting screen Cancel action', async ({ page }) => {
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/rooms', async (route) => {
+    await pending;
+    await route.continue();
+  });
+  try {
+    await page.goto('/zed-duel/');
+    await page.getByRole('button', { name: 'Create a duel' }).click();
+    // Hold the request so the synchronous Create -> Connecting transition is observable.
+    await expect(page.getByRole('heading', { name: 'Connecting…' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible();
+    release();
+    await expect(page.locator('.room-code')).toBeVisible();
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: 'wait' });
+  }
+});
+
 test('Pages completes a relayed duel with WebRTC disabled, rejects a third player and rematches', async ({
   browser,
   page,

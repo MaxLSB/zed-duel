@@ -389,19 +389,21 @@ async function copyInvite() {
 document.addEventListener('click', (event) => {
   const button = (event.target as HTMLElement).closest('button');
   if (!button) return;
-  if (button.id === 'skip-killcam') {
+  // Rendering can reuse this element for another action during the same click.
+  const action = button.id;
+  if (action === 'skip-killcam') {
     renderer.killcam.skip();
     if (connection.room) renderRoom(connection.room);
   }
-  if (button.id === 'create-room') connect({ type: 'create', champion: selectedChampion });
-  if (button.id === 'practice') connect({ type: 'practice', champion: selectedChampion });
-  if (button.id === 'reset-practice' || button.id === 'practice-again')
+  if (action === 'create-room') connect({ type: 'create', champion: selectedChampion });
+  if (action === 'practice') connect({ type: 'practice', champion: selectedChampion });
+  if (action === 'reset-practice' || action === 'practice-again')
     connection.send({ type: 'reset-practice' });
-  if (button.id === 'ready') connection.send({ type: 'ready' });
-  if (button.id === 'copy-room' || button.id === 'copy-card') void copyInvite();
-  if (button.id === 'leave' || button.id === 'cancel-connect') connection.send({ type: 'leave' });
-  if (button.id === 'retry-connect' && lastConnectionRequest) connect(lastConnectionRequest);
-  if (button.id === 'reconnect') location.reload();
+  if (action === 'ready') connection.send({ type: 'ready' });
+  if (action === 'copy-room' || action === 'copy-card') void copyInvite();
+  if (action === 'leave' || action === 'cancel-connect') connection.send({ type: 'leave' });
+  if (action === 'retry-connect' && lastConnectionRequest) connect(lastConnectionRequest);
+  if (action === 'reconnect') location.reload();
 });
 $('#overlay').addEventListener('submit', (event) => {
   event.preventDefault();
