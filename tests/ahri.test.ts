@@ -196,21 +196,74 @@ test('Charm interrupts Spirit Rush', () => {
   assert.ok(p.stats.damageDealt > 0);
 });
 
-test('ranged attacks use Ahri stats; Essence Theft heals once on a kill and respects healing reduction', () => {
+test('ranged attacks and champion kills do not grant Essence Theft stacks or healing', () => {
+  const game = duel(),
+    [p, enemy] = game.state.players;
+  p.hp = 1000;
+  enemy.hp = 1;
+  game.input(0, { action: 'attack' });
+  advance(game, 0.3);
+  assert.equal(game.state.winner, 0);
+  assert.equal(p.stats.attacksHit, 1);
+  assert.equal(p.ahri!.essenceHits, 0);
+  near(p.hp, 1000 + AHRI_STATS.hpRegen * game.state.time);
+  near(p.stats.damageDealt, 1 + STATS.hpRegen * game.state.time);
+});
+
+test('three connecting casts heal once; orb passes and fox-fires each count only once per cast', () => {
   for (const grievous of [false, true]) {
     const game = duel(),
-      [p, enemy] = game.state.players;
+      [p] = game.state.players;
     p.hp = 1000;
-    if (grievous) p.grievousUntil = 10;
-    enemy.hp = 1;
-    game.input(0, { action: 'attack' });
-    advance(game, 0.3);
-    assert.equal(game.state.winner, 0);
-    assert.equal(p.stats.attacksHit, 1);
+    if (grievous) p.grievousUntil = 100;
     const factor = grievous ? 0.6 : 1;
+    cast(game, 'q');
+    advance(game, 1.6);
+    assert.equal(p.ahri!.essenceHits, 1);
+    cast(game, 'w');
+    advance(game, 1);
+    assert.equal(p.ahri!.essenceHits, 2);
+    near(p.hp, 1000 + AHRI_STATS.hpRegen * game.state.time * factor);
+    cast(game, 'e');
+    advance(game, 0.7);
+    assert.equal(p.ahri!.essenceHits, 0);
     near(p.hp, 1000 + AHRI_STATS.hpRegen * game.state.time * factor + AHRI_PASSIVE.heal * factor);
-    near(p.stats.damageDealt, 1 + STATS.hpRegen * game.state.time);
+    cast(game, 'q');
+    advance(game, 1.6);
+    assert.equal(p.ahri!.essenceHits, 1);
+    near(p.hp, 1000 + AHRI_STATS.hpRegen * game.state.time * factor + AHRI_PASSIVE.heal * factor);
   }
+});
+
+test('missed spells grant no stacks; each Spirit Rush dash can count and healing caps at max HP', () => {
+  const game = duel(),
+    [p] = game.state.players;
+  cast(game, 'q', 0, { x: 700, y: 100 });
+  advance(game, 1.6);
+  assert.equal(p.ahri!.essenceHits, 0);
+  for (let i = 0; i < 3; i++) {
+    cast(game, 'r', 0, { ...p.pos });
+    advance(game, 1.1);
+    assert.equal(p.ahri!.essenceHits, (i + 1) % AHRI_PASSIVE.hits);
+  }
+  assert.equal(p.hp, AHRI_STATS.hp);
+  assert.equal(game.state.effects.filter((e) => e.kind === 'passive').length, 1);
+});
+
+test('orb return can earn the cast stack if outbound misses; mirror counters are independent', () => {
+  const game = duel(500, 'ahri'),
+    [p, enemy] = game.state.players;
+  enemy.untargetableUntil = 0.7;
+  cast(game, 'q');
+  advance(game, 0.7);
+  assert.equal(p.ahri!.essenceHits, 0);
+  advance(game, 0.8);
+  assert.equal(p.ahri!.essenceHits, 1);
+  assert.equal(enemy.ahri!.essenceHits, 0);
+  cast(game, 'w', 1);
+  advance(game, 1);
+  assert.equal(enemy.ahri!.essenceHits, 1);
+  assert.equal(p.ahri!.essenceHits, 1);
 });
 
 test('Ahri mirror resets all missiles, dashes, crowd control and stats; summary omits shurikens', () => {
@@ -229,8 +282,14 @@ test('Ahri mirror resets all missiles, dashes, crowd control and stats; summary 
     assert.equal(p.ahri!.rushCharges, 0);
     assert.equal(p.ahri!.dash, null);
     assert.equal(p.ahri!.fires, 0);
+    assert.equal(p.ahri!.essenceHits, 0);
     assert.equal(p.stats.damageDealt, 0);
   }
   advance(game, 2);
   assert.equal(game.state.ahriMissiles.length, 0);
+  game.state.players[0].pos = { x: 700, y: 700 };
+  game.state.players[1].pos = { x: 1200, y: 700 };
+  cast(game, 'w');
+  advance(game, 1);
+  assert.equal(game.state.players[0].ahri!.essenceHits, 1);
 });

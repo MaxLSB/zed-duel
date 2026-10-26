@@ -1,4 +1,5 @@
-import { AHRI_SPELLS as S } from './ahri-balance';
+import { AHRI_PASSIVE, AHRI_SPELLS as S } from './ahri-balance';
+import { SINGED_SPELLS } from './singed-balance';
 import { championStats } from './champions';
 import { bounded, direction, distance, lerp, segmentDistance, towards } from './geometry';
 import type { SpellKey } from './balance';
@@ -9,11 +10,32 @@ interface Combat {
   schedule: (delay: number, run: () => void) => void;
   damage: (owner: PlayerId, target: PlayerState, raw: number, type: 'magic' | 'true') => void;
   interrupt: (p: PlayerState) => void;
+  healed: (p: PlayerState) => void;
 }
 
 export class AhriKit {
   private serial = 0;
+  private creditedCasts = new Map<number, number>();
   constructor(private combat: Combat) {}
+
+  reset() {
+    this.serial = 0;
+    this.creditedCasts.clear();
+  }
+
+  private spellHit(p: PlayerState, castId: number) {
+    if (this.creditedCasts.has(castId)) return;
+    const now = this.combat.state().time;
+    // Retain credit beyond the remaining flame lifetime plus missile lifetime.
+    this.creditedCasts.set(castId, now + S.w.duration + 5);
+    const kit = p.ahri!;
+    kit.essenceHits++;
+    if (kit.essenceHits < AHRI_PASSIVE.hits) return;
+    kit.essenceHits = 0;
+    const heal = AHRI_PASSIVE.heal * (p.grievousUntil > now ? 1 - SINGED_SPELLS.r.grievous : 1);
+    p.hp = Math.min(championStats(p.champion).hp, p.hp + heal);
+    this.combat.healed(p);
+  }
 
   cast(p: PlayerState, key: Exclude<SpellKey, 'd'>, point: Vec) {
     const state = this.combat.state(),
@@ -33,6 +55,7 @@ export class AhriKit {
       });
     }
     if (key === 'w') {
+      kit.fireCastId = ++this.serial;
       kit.hasteUntil = now + S.w.hasteDuration;
       kit.fires = 3;
       kit.fireHits = 0;
@@ -80,12 +103,21 @@ export class AhriKit {
     return true;
   }
 
-  private missile(p: PlayerState, kind: AhriMissile['kind'], point: Vec, damage: number, remaining = 0) {
+  private missile(
+    p: PlayerState,
+    kind: AhriMissile['kind'],
+    point: Vec,
+    damage: number,
+    remaining = 0,
+    castId?: number,
+  ) {
     const state = this.combat.state();
     const velocity =
       distance(p.pos, point) > 0 ? direction(p.pos, point) : { x: Math.cos(p.facing), y: Math.sin(p.facing) };
+    const id = ++this.serial;
     state.ahriMissiles.push({
-      id: ++this.serial,
+      id,
+      castId: castId ?? id,
       owner: p.id,
       kind,
       pos: { ...p.pos },
@@ -101,6 +133,7 @@ export class AhriKit {
   update(dt: number) {
     const state = this.combat.state(),
       now = state.time;
+    for (const [id, until] of this.creditedCasts) if (until <= now) this.creditedCasts.delete(id);
     for (const p of state.players) {
       const kit = p.ahri;
       if (!kit) continue;
@@ -114,7 +147,7 @@ export class AhriKit {
         enemy.untargetableUntil <= now &&
         distance(p.pos, enemy.pos) <= S.w.range
       ) {
-        this.missile(p, 'fire', enemy.pos, S.w.damage * (kit.fireHits ? S.w.repeat : 1));
+        this.missile(p, 'fire', enemy.pos, S.w.damage * (kit.fireHits ? S.w.repeat : 1), 0, kit.fireCastId);
         kit.fireHits++;
         kit.fires--;
         kit.fireAt = now + 0.1;
@@ -142,6 +175,7 @@ export class AhriKit {
       if (hit) {
         m.hit = true;
         this.combat.damage(m.owner, target, m.damage, m.returning ? 'true' : 'magic');
+        this.spellHit(owner, m.castId);
         if (m.kind === 'charm' && target.hp > 0) {
           this.combat.interrupt(target);
           target.airborne = null;

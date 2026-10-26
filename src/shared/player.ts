@@ -39,6 +39,8 @@ export class Player implements PlayerState {
     this.ahri =
       champion === 'ahri'
         ? {
+            essenceHits: 0,
+            fireCastId: 0,
             hasteUntil: 0,
             fires: 0,
             fireAt: 0,

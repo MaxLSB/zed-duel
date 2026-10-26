@@ -15,7 +15,7 @@ Data Dragon's `16.21.1` Ahri JSON could not be fetched in this environment. No R
 
 | Ability | Implementation | Cooldown |
 | --- | --- | --- |
-| Essence Theft | Heal 165 HP on the opposing champion's death, capped at maximum HP and reduced by healing reduction | No repeat kill in a round |
+| Essence Theft | Heal 60 HP every three spell casts that hit, capped at maximum HP and reduced by healing reduction | No cooldown |
 | Q · Orb of Deception | 900-unit outbound orb, 135 magic damage; homes back to Ahri for 135 true damage; each pass hits once | 7/3s |
 | W · Fox-Fire | Three homing flames: 120 + 48 + 48 magic damage to the opponent; 40% speed boost decays over 2s | 5/3s |
 | E · Charm | 1,000-unit skillshot; 240 magic damage; 1.8s forced movement toward Ahri at 65% reduced speed | 4s |
@@ -24,7 +24,7 @@ Data Dragon's `16.21.1` Ahri JSON could not be fetched in this environment. No R
 
 Q/W/E follow the existing one-third cooldown convention. Mana and AP items are absent. R's cooldown starts after the sequence closes so the duel's 10s override cannot refill charges inside a 15s window. This deliberately differs from League's cooldown starting on activation.
 
-The arena has no minions or monsters, so there are no passive stacks. A champion kill ends the round immediately; healing is applied before the result snapshot. R's extra charge and duration on takedown have no further combat use and are omitted. The passive does not inherit Zed's attack bonus or an arbitrary ten-second lockout.
+Essence Theft is a custom duel passive: every three spell casts that connect heal 60 HP. Q counts once across both passes; W counts once across its three flames; each R dash can count when its bolt hits. Misses, basic attacks and kills grant no separate credit. The counter resets when healing triggers, even at full HP, and resets between rounds. The HUD displays 0/3, 1/3 or 2/3. This replaces League's minion-stack and champion-kill healing. R's extra charge and duration on takedown have no further combat use because a kill ends the round, so they remain omitted.
 
 ## Timing and fidelity limits
 
@@ -34,7 +34,7 @@ The arena has no minions or monsters, so there are no passive stacks. A champion
 - Charm interrupts attack windups, buffered casts, targeted approaches, cast windups, Fling flight and Spirit Rush. It rejects player movement, attack and spell commands while active, including Flash. Forced movement follows the caster and respects roots and arena bounds. Untargetable Zed cannot be hit. Existing poison continues to tick. Singed's Fling can interrupt Ahri's dash; roots and adhesive prevent starting R or Flash.
 - Ahri's ranged basic attacks use the shared windup/range validation and deal physical damage immediately at windup completion; no traveling basic-attack missile is simulated. Movement uses the existing linear model without League's speed soft caps.
 - All additional state is serialized for Node rooms, browser hosts, prediction and killcam. Non-Zed champions have no shuriken statistics. Reset/rematch clears missiles, charms, flames and dash charges and preserves picks. Practice keeps a Zed dummy; Charm can displace it.
-- Artwork is original Canvas geometry and SVG icons, with distinct orb, heart, flame and nine-tail shapes. No Riot art assets are bundled.
+- Artwork is original Canvas geometry and SVG icons. Ahri uses a compact nine-tail fan, dark angular clothing, a small fox-eared silhouette and player-color outlines matching Zed and Singed. No Riot art assets are bundled.
 
 ## Integration and rollout
 
@@ -46,7 +46,7 @@ Deploy the updated Cloudflare relay before publishing the Pages frontend: the pr
 
 Combat tests cover both orb damage types, return tracking, invulnerability, flame damage and expiry, Charm interruption and control lockout, dash limits, grounding, passive healing, prediction and resets. In-memory tests cover Node serialization and browser host selection, guest picks, rematches and practice resets. The same two browser scenarios run against Node and Pages to exercise selection, bindings, casting, reset/reload and mixed duels.
 
-All 101 tests excluding the real WebSocket integration test pass. Type checks for the application and Cloudflare Worker, the Node frontend build, and the Pages frontend build pass. The Cloudflare Worker dry-run bundle passes. Both Playwright suites discover the four new scenarios.
+All 104 tests excluding the real WebSocket integration test pass. Type checks for the application and Cloudflare Worker, the Node frontend build, and the Pages frontend build pass. The Cloudflare Worker dry-run bundle passes. Both Playwright suites discover the four new scenarios.
 
 Localhost listeners are prohibited by this implementation environment (`listen EPERM`). Real WebSocket and Playwright execution require CI or a normal local terminal; the in-memory checks do not substitute for them:
 

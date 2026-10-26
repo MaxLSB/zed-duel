@@ -271,19 +271,22 @@ function renderHUD(game: GameState, room: RoomState) {
     slot.classList.toggle('ability-active', active);
     if (key === 'q' && p.singed) slot.setAttribute('aria-pressed', String(p.singed.poisonOn));
     else slot.removeAttribute('aria-pressed');
-    slot.querySelector('.cooldown')!.textContent = rush
-      ? `${p.ahri!.rushCharges} · ${Math.ceil(p.ahri!.rushUntil - game.time)}s`
-      : active
-        ? key === 'r'
-          ? `${Math.ceil(p.singed!.insanityUntil - game.time)}s`
-          : 'ON'
-        : shadow
-          ? '↔'
-          : remaining > 0
-            ? remaining >= 10
-              ? `${Math.ceil(remaining)}`
-              : remaining.toFixed(1)
-            : '';
+    slot.querySelector('.cooldown')!.textContent =
+      key === 'passive' && p.ahri
+        ? `${p.ahri.essenceHits}/${AHRI_PASSIVE.hits}`
+        : rush
+          ? `${p.ahri!.rushCharges} · ${Math.ceil(p.ahri!.rushUntil - game.time)}s`
+          : active
+            ? key === 'r'
+              ? `${Math.ceil(p.singed!.insanityUntil - game.time)}s`
+              : 'ON'
+            : shadow
+              ? '↔'
+              : remaining > 0
+                ? remaining >= 10
+                  ? `${Math.ceil(remaining)}`
+                  : remaining.toFixed(1)
+                : '';
     slot.classList.toggle('on-cooldown', remaining > 0 && !shadow && !active);
     slot.classList.toggle('recast', !!shadow || !!rush);
     slot.classList.toggle('charge-window', !!rush);

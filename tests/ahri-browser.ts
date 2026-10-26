@@ -28,6 +28,7 @@ export function ahriBrowserTests(base: string) {
     await expect(page).toHaveURL(/practice=1&champion=ahri/);
     await expect(page.locator('#overlay')).toHaveClass(/hidden/);
     await expect(page.locator('#hp-0')).toHaveText('2358 / 2358');
+    await expect(page.locator('[data-spell=passive] .cooldown')).toHaveText('0/3');
     await page.getByRole('button', { name: 'Settings and controls' }).click();
     await expect(page.locator('#binding-fields')).toContainText('Spirit Rush');
     await page.getByRole('textbox', { name: 'q binding', exact: true }).press('Space');
@@ -35,6 +36,7 @@ export function ahriBrowserTests(base: string) {
     await aim(page, 1450, 700);
     await page.keyboard.press('e');
     await expect(page.locator('#status-1')).toHaveText('CHARMED');
+    await expect(page.locator('[data-spell=passive] .cooldown')).toHaveText('1/3');
     await page.keyboard.press('Space');
     await page.keyboard.press('z');
     await aim(page, 950, 300);
@@ -45,6 +47,7 @@ export function ahriBrowserTests(base: string) {
     await page.getByRole('button', { name: 'Reset practice', exact: true }).click();
     await expect(page.locator('#hp-1')).toHaveText('2337 / 2337');
     await expect(page.locator('#status-1')).toHaveText('');
+    await expect(page.locator('[data-spell=passive] .cooldown')).toHaveText('0/3');
     await expect(page.locator('[data-spell=r]')).not.toHaveClass(/recast/);
     await page.reload();
     await expect(page.locator('#overlay')).toHaveClass(/hidden/);

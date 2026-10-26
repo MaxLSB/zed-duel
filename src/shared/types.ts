@@ -7,6 +7,8 @@ export interface Vec {
 export type PlayerId = 0 | 1;
 export type ChampionId = 'zed' | 'singed' | 'ahri';
 export interface AhriState {
+  essenceHits: number;
+  fireCastId: number;
   hasteUntil: number;
   fires: number;
   fireAt: number;
@@ -19,6 +21,7 @@ export interface AhriState {
 }
 export interface AhriMissile {
   id: number;
+  castId: number;
   owner: PlayerId;
   kind: 'orb' | 'charm' | 'fire' | 'rush';
   pos: Vec;

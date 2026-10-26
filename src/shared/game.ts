@@ -2,7 +2,6 @@ import { championStats, potionBonus } from './champions';
 import { SINGED_SPELLS } from './singed-balance';
 import { SingedKit } from './singed';
 import { AhriKit } from './ahri';
-import { AHRI_PASSIVE } from './ahri-balance';
 import { PASSIVE, SPELLS, STATS, STEP } from './balance';
 import { bounded, direction, distance, segmentDistance, towards } from './geometry';
 import { movePlayer } from './movement';
@@ -46,6 +45,7 @@ export class Game {
     schedule: (delay, run) => this.schedule(delay, run),
     damage: (owner, target, raw, type) => this.damage(owner, target, raw, type),
     interrupt: this.interrupt,
+    healed: (p) => this.effect('passive', p.pos, p.id),
   });
 
   private singed = new SingedKit({
@@ -85,6 +85,7 @@ export class Game {
   }
 
   start(countdown = 3) {
+    this.ahri.reset();
     this.state = this.initialState();
     this.state.phase = countdown > 0 ? 'countdown' : 'active';
     this.state.countdown = countdown;
@@ -96,6 +97,7 @@ export class Game {
   }
 
   disconnect() {
+    this.ahri.reset();
     this.state = this.initialState();
     this.scheduled = [];
     this.groups.clear();
@@ -584,13 +586,6 @@ export class Game {
     const amount = type === 'true' ? raw : (raw * 100) / (100 + resistance);
     this.state.players[owner].stats.damageDealt += Math.min(target.hp, amount);
     target.hp = Math.max(0, target.hp - amount);
-    const source = this.state.players[owner];
-    if (target.hp === 0 && source.ahri && source.hp > 0) {
-      const heal =
-        AHRI_PASSIVE.heal * (source.grievousUntil > this.state.time ? 1 - SINGED_SPELLS.r.grievous : 1);
-      source.hp = Math.min(championStats(source.champion).hp, source.hp + heal);
-      this.effect('passive', source.pos, owner);
-    }
     this.effect('hit', target.pos, owner, amount);
   }
 }

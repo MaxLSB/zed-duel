@@ -53,7 +53,7 @@ Choose **Ahri** for practice or duels, or open `?practice=1&champion=ahri` (Page
 | R | Spirit Rush toward the cursor; up to three dashes within 15s |
 | D | Flash toward the cursor |
 
-The HUD shows remaining dash charges and their window. Charm interrupts attacks and dashes and blocks movement orders and casts. Roots and Singed's adhesive prevent Spirit Rush. Essence Theft heals on a champion kill; there are no minions to stack it on. Reset practice restores the dummy after Charm displaces it.
+The HUD shows remaining dash charges and their window. Charm interrupts attacks and dashes and blocks movement orders and casts. Roots and Singed's adhesive prevent Spirit Rush. Essence Theft heals 60 HP after three spell casts hit; each cast counts once, and the passive icon shows progress. Reset practice restores the dummy after Charm displaces it.
 
 Q/W/E cooldowns are divided by three. Spirit Rush has a 10s cooldown after its last cast or window expiry, with 1s between casts. See [Ahri combat notes](docs/ahri.md) for sources, values, approximations and validation. The updated Cloudflare relay must be deployed before publishing Ahri on Pages because its champion allowlist validates guest picks.
 

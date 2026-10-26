@@ -14,7 +14,7 @@ export const AHRI_STATS = {
   windup: 0.2,
 } as const;
 
-export const AHRI_PASSIVE = { name: 'Essence Theft', heal: 165 } as const;
+export const AHRI_PASSIVE = { name: 'Essence Theft', hits: 3, heal: 60 } as const;
 export const AHRI_SPELLS = {
   q: {
     name: 'Orb of Deception',
