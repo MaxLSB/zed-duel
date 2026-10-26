@@ -32,7 +32,7 @@ Essence Theft is a custom duel passive: every three spell casts that connect hea
 - W seeks the sole opponent within 725 units. Flames launch after 0.25s, then 0.1s apart; unspent flames expire after 2.5s. Recasting replaces unspent flames and refreshes the speed buff. Target priorities and minion bonuses are irrelevant here. Repeat damage is assigned in launch order. Homing missiles disappear if their target becomes untargetable.
 - R moves over time at a fixed 1,530 units/second and clamps to arena edges. It is targetable and interruptible, not a blink. W may cast during a dash; other casts wait until it finishes. The ending bolt requires a living, targetable enemy in range. Terrain and multiple targets are absent.
 - Charm interrupts attack windups, buffered casts, targeted approaches, cast windups, Fling flight and Spirit Rush. It rejects player movement, attack and spell commands while active, including Flash. Forced movement follows the caster and respects roots and arena bounds. Untargetable Zed cannot be hit. Existing poison continues to tick. Singed's Fling can interrupt Ahri's dash; roots and adhesive prevent starting R or Flash.
-- Ahri's ranged basic attacks use the shared windup/range validation and deal physical damage immediately at windup completion; no traveling basic-attack missile is simulated. Movement uses the existing linear model without League's speed soft caps.
+- Ahri's ranged basic attacks use the shared windup/range validation and deal physical damage immediately at windup completion; a small cosmetic orb travels during the windup, followed by an impact spark, without adding a missile travel delay to damage. Movement uses the existing linear model without League's speed soft caps.
 - All additional state is serialized for Node rooms, browser hosts, prediction and killcam. Non-Zed champions have no shuriken statistics. Reset/rematch clears missiles, charms, flames and dash charges and preserves picks. Practice keeps a Zed dummy; Charm can displace it.
 - Artwork is original Canvas geometry and SVG icons. Ahri uses a compact nine-tail fan, dark angular clothing, a small fox-eared silhouette and player-color outlines matching Zed and Singed. No Riot art assets are bundled.
 
@@ -46,7 +46,7 @@ Deploy the updated Cloudflare relay before publishing the Pages frontend: the pr
 
 Combat tests cover both orb damage types, return tracking, invulnerability, flame damage and expiry, Charm interruption and control lockout, dash limits, grounding, passive healing, prediction and resets. In-memory tests cover Node serialization and browser host selection, guest picks, rematches and practice resets. The same two browser scenarios run against Node and Pages to exercise selection, bindings, casting, reset/reload and mixed duels.
 
-All 104 tests excluding the real WebSocket integration test pass. Type checks for the application and Cloudflare Worker, the Node frontend build, and the Pages frontend build pass. The Cloudflare Worker dry-run bundle passes. Both Playwright suites discover the four new scenarios.
+All 107 tests excluding the real WebSocket integration test pass. Type checks for the application and Cloudflare Worker, the Node frontend build, and the Pages frontend build pass. The Cloudflare Worker dry-run bundle passes. Both Playwright suites discover the four new scenarios.
 
 Localhost listeners are prohibited by this implementation environment (`listen EPERM`). Real WebSocket and Playwright execution require CI or a normal local terminal; the in-memory checks do not substitute for them:
 

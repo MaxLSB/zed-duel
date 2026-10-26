@@ -71,6 +71,8 @@ Q/W/E cooldowns are divided by three. Spirit Rush has a 10s cooldown after its l
 | R over opponent / R again | Move into range and cast Death Mark / return |
 | D | Flash toward cursor |
 
+Basic attacks have a short wind-up and follow-through: Zed swipes his blades, Singed swings, and Ahri sends a tiny orb with an impact spark. These visuals follow the existing attack timing and also appear in killcam.
+
 Use the settings button to rebind keys, including for AZERTY keyboards. Click a binding and press a letter, number or Space; Space works for any spell, summoner or Stop. Each action needs a unique key. Hover an ability to see its description and range. The arena fills the available viewport with a compact health and ability HUD. Both players must agree to a rematch. A disconnect cancels the current duel and returns the remaining player to the room.
 
 Spells pressed up to 250 ms before a cast lock, cooldown or recast lock ends are buffered and fire when legal. The latest waiting spell replaces the previous one; its aim is kept from the original input. Ready E and Flash remain immediate. S, movement and attack orders cancel waiting spells. An out-of-range R follows its target until casting range, spending its cooldown only when it casts; S or a new movement order cancels the approach. Flash can bring a pending R into range.

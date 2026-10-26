@@ -3,6 +3,7 @@ import { SINGED_SPELLS } from '../shared/singed-balance';
 import { bounded, towards } from '../shared/geometry';
 import { SingedEffects } from './singed-effects';
 import { AhriEffects } from './ahri-effects';
+import { AttackEffects } from './attack-effects';
 import { ARENA, SPELLS } from '../shared/balance';
 import { clamp, distance, lerp } from '../shared/geometry';
 import type { GameState, PlayerId, PlayerState, Vec } from '../shared/types';
@@ -17,6 +18,7 @@ export class Renderer {
   private ultimateEffects: UltimateEffects;
   private singedEffects: SingedEffects;
   private ahriEffects: AhriEffects;
+  private attackEffects: AttackEffects;
   private current: GameState | null = null;
   private previous: GameState | null = null;
   private received = 0;
@@ -36,6 +38,7 @@ export class Renderer {
     this.ultimateEffects = new UltimateEffects(this.ctx);
     this.singedEffects = new SingedEffects(this.ctx);
     this.ahriEffects = new AhriEffects(this.ctx);
+    this.attackEffects = new AttackEffects(this.ctx);
     new ResizeObserver(() => this.resize()).observe(canvas);
     this.resize();
     requestAnimationFrame(this.frame);
@@ -148,11 +151,22 @@ export class Renderer {
           );
         c.setLineDash([]);
       }
-      for (const p of s.players) {
+      const positions = s.players.map((p) => {
         const before = playback ? p.pos : (this.previous?.players[p.id].pos ?? p.pos);
         const after = playback?.next.players[p.id].pos ?? p.pos;
         const pos = distance(before, after) < 100 ? lerp(before, after, alpha) : p.pos;
-        this.playerBody(p, pos, now);
+        return pos;
+      });
+      for (const p of s.players) {
+        this.playerBody(p, positions[p.id], now, s.effects);
+        this.attackEffects.windup(
+          p,
+          positions[p.id],
+          s.players[1 - p.id],
+          positions[1 - p.id],
+          now,
+          COLORS[p.id],
+        );
       }
       this.ahriEffects.missiles(s, COLORS);
       for (const q of s.projectiles) {
@@ -183,6 +197,7 @@ export class Renderer {
         c.restore();
       }
       for (const effect of s.effects) {
+        if (this.attackEffects.impact(effect, s.players[effect.owner], now, COLORS[effect.owner])) continue;
         if (this.ultimateEffects.effect(effect, now)) continue;
         const age = now - effect.at;
         const opacity = clamp(1 - age / 0.6, 0, 1);
@@ -273,7 +288,7 @@ export class Renderer {
       }
   }
 
-  private playerBody(p: PlayerState, pos: Vec, now: number) {
+  private playerBody(p: PlayerState, pos: Vec, now: number, effects: GameState['effects']) {
     const c = this.ctx,
       color = COLORS[p.id];
     if (p.ultimate || p.untargetableUntil > now) return;
@@ -284,10 +299,12 @@ export class Renderer {
     const height = flight
       ? Math.sin(clamp((now - flight.started) / (flight.ends - flight.started), 0, 1) * Math.PI) * 100
       : 0;
-    const body = { x: pos.x, y: pos.y - height };
-    if (p.singed) this.singedEffects.body(p, body, now, color);
-    else if (p.ahri) this.ahriEffects.body(p, body, now, color);
-    else this.ninja(body, p.facing, color, p.hp <= 0 ? 0.2 : 1);
+    const pose = this.attackEffects.pose(p, { x: pos.x, y: pos.y - height }, effects, now);
+    const body = pose.pos,
+      actor = { ...p, facing: pose.facing };
+    if (p.singed) this.singedEffects.body(actor, body, now, color);
+    else if (p.ahri) this.ahriEffects.body(actor, body, now, color);
+    else this.ninja(body, pose.facing, color, p.hp <= 0 ? 0.2 : 1);
     if (p.charm && p.charm.until > now) this.ahriEffects.charm(body);
     if (p.rootUntil > now) {
       c.strokeStyle = '#c6df74';

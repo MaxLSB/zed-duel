@@ -42,7 +42,6 @@ export abstract class GameConnection extends EventTarget {
         )
       ) {
         this.room = null;
-        this.prediction?.clear();
         if (!this.incompatibleServer) this.emit('incompatible-server', null);
         this.incompatibleServer = true;
         return;

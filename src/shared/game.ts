@@ -178,8 +178,16 @@ export class Game {
   private schedule(delay: number, run: () => void) {
     this.scheduled.push({ at: this.state.time + delay, run });
   }
-  private effect(kind: Effect['kind'], pos: Vec, owner: PlayerId, amount?: number) {
-    this.state.effects.push({ id: ++this.serial, kind, pos: { ...pos }, owner, at: this.state.time, amount });
+  private effect(kind: Effect['kind'], pos: Vec, owner: PlayerId, amount?: number, from?: Vec) {
+    this.state.effects.push({
+      id: ++this.serial,
+      kind,
+      pos: { ...pos },
+      owner,
+      at: this.state.time,
+      amount,
+      ...(from ? { from: { ...from } } : {}),
+    });
   }
 
   private updatePlayer(p: PlayerState, dt: number) {
@@ -265,7 +273,7 @@ export class Game {
         p.passiveAt <= this.state.time;
       this.damage(p.id, enemy, stats.ad, 'physical');
       p.stats.attacksHit++;
-      this.effect('attack', enemy.pos, p.id);
+      this.effect('attack', enemy.pos, p.id, undefined, p.pos);
       if (passive) {
         this.damage(p.id, enemy, enemyStats.hp * PASSIVE.ratio, 'magic');
         p.passiveAt = this.state.time + PASSIVE.cooldown;

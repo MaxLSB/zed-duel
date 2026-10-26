@@ -128,6 +128,8 @@ export interface Effect {
   owner: PlayerId;
   at: number;
   amount?: number;
+  // Basic attacks capture their origin; Fling's existing impact has no origin.
+  from?: Vec;
 }
 export interface GameState {
   time: number;
