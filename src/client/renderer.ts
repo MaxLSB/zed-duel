@@ -2,6 +2,9 @@ import { championStats, championSpells } from '../shared/champions';
 import { SINGED_SPELLS } from '../shared/singed-balance';
 import { bounded, towards } from '../shared/geometry';
 import { SingedEffects } from './singed-effects';
+import { LeblancEffects } from './leblanc-effects';
+import { LEBLANC_SPELLS } from '../shared/leblanc-balance';
+import { visible } from '../shared/visibility';
 import { AhriEffects } from './ahri-effects';
 import { AttackEffects } from './attack-effects';
 import { ARENA, SPELLS } from '../shared/balance';
@@ -18,6 +21,7 @@ export class Renderer {
   private ultimateEffects: UltimateEffects;
   private singedEffects: SingedEffects;
   private ahriEffects: AhriEffects;
+  private leblancEffects: LeblancEffects;
   private attackEffects: AttackEffects;
   private current: GameState | null = null;
   private previous: GameState | null = null;
@@ -38,6 +42,7 @@ export class Renderer {
     this.ultimateEffects = new UltimateEffects(this.ctx);
     this.singedEffects = new SingedEffects(this.ctx);
     this.ahriEffects = new AhriEffects(this.ctx);
+    this.leblancEffects = new LeblancEffects(this.ctx);
     this.attackEffects = new AttackEffects(this.ctx);
     new ResizeObserver(() => this.resize()).observe(canvas);
     this.resize();
@@ -123,6 +128,8 @@ export class Renderer {
               ? Math.min(1, (performance.now() - this.finishedAt) / 1000)
               : 0);
       this.singedEffects.zones(s, now, COLORS);
+      this.leblancEffects.ground(s, now, COLORS);
+      this.leblancEffects.clones(s, now, COLORS, this.player);
       for (const p of s.players)
         if (p.ultimate) this.ultimateEffects.approach(p, s.players[p.ultimate.target], now);
       const alpha = playback?.alpha ?? clamp((performance.now() - this.received) / 50, 0, 1);
@@ -143,7 +150,16 @@ export class Renderer {
         c.strokeStyle = COLORS[this.player] + '50';
         c.lineWidth = 2;
         c.setLineDash([9, 9]);
-        this.circle(self.pos, championSpells(self.champion)[this.controls.hovered].range);
+        const hovered =
+          this.controls.hovered === 'r' && self.leblanc
+            ? (self.leblanc.lastSpell ?? 'q')
+            : this.controls.hovered;
+        this.circle(self.pos, championSpells(self.champion)[hovered].range);
+        if (self.leblanc && hovered === 'w')
+          this.circle(
+            bounded(towards(self.pos, this.controls.cursor, LEBLANC_SPELLS.w.range)),
+            LEBLANC_SPELLS.w.radius,
+          );
         if (self.champion === 'singed' && this.controls.hovered === 'w')
           this.circle(
             bounded(towards(self.pos, this.controls.cursor, SINGED_SPELLS.w.range)),
@@ -169,6 +185,7 @@ export class Renderer {
         );
       }
       this.ahriEffects.missiles(s, COLORS);
+      this.leblancEffects.spells(s, now, COLORS, this.player);
       for (const q of s.projectiles) {
         const travel =
           s.phase === 'finished' ? 0 : Math.min(q.remaining, Math.max(0, now - s.time) * SPELLS.q.speed);
@@ -197,6 +214,7 @@ export class Renderer {
         c.restore();
       }
       for (const effect of s.effects) {
+        if (effect.kind === 'distortion') continue;
         if (this.attackEffects.impact(effect, s.players[effect.owner], now, COLORS[effect.owner])) continue;
         if (this.ultimateEffects.effect(effect, now)) continue;
         const age = now - effect.at;
@@ -291,7 +309,7 @@ export class Renderer {
   private playerBody(p: PlayerState, pos: Vec, now: number, effects: GameState['effects']) {
     const c = this.ctx,
       color = COLORS[p.id];
-    if (p.ultimate || p.untargetableUntil > now) return;
+    if (p.ultimate || p.untargetableUntil > now || (p.id !== this.player && !visible(p, now))) return;
     c.strokeStyle = color + (p.id === this.player ? 'b0' : '45');
     c.lineWidth = 2;
     this.circle(pos, 75);
@@ -304,6 +322,7 @@ export class Renderer {
       actor = { ...p, facing: pose.facing };
     if (p.singed) this.singedEffects.body(actor, body, now, color);
     else if (p.ahri) this.ahriEffects.body(actor, body, now, color);
+    else if (p.leblanc) this.leblancEffects.body(actor, body, now, color);
     else this.ninja(body, pose.facing, color, p.hp <= 0 ? 0.2 : 1);
     if (p.charm && p.charm.until > now) this.ahriEffects.charm(body);
     if (p.rootUntil > now) {

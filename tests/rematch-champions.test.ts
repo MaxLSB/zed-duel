@@ -47,10 +47,12 @@ for (const transport of ['node', 'pages'] as const) {
       ['ahri', 'singed'],
       ['zed', 'ahri'],
       ['singed', 'zed'],
+      ['leblanc', 'ahri'],
+      ['leblanc', 'leblanc'],
     ] as const) {
       for (let i = 0; i < 182; i++) match.step();
       assert.equal(match.game.state.phase, 'active');
-      match.game.input(0, { action: 'cast', spell: 'q', point: { x: 1900, y: 700 } });
+      match.game.input(0, { action: 'cast', spell: 'q', point: { x: 1900, y: 700 }, target: 1 });
       for (let i = 0; i < 20; i++) match.step();
       match.game.state.players[1].hp = 0;
       match.step();
@@ -75,6 +77,8 @@ for (const transport of ['node', 'pages'] as const) {
         assert.deepEqual(snapshot.game.zones, []);
         assert.deepEqual(snapshot.game.projectiles, []);
         assert.deepEqual(snapshot.game.ahriMissiles, []);
+        assert.deepEqual(snapshot.game.leblancMissiles, []);
+        assert.deepEqual(snapshot.game.chains, []);
         assert.deepEqual(snapshot.game.effects, []);
       }
       ready(0);

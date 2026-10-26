@@ -126,3 +126,28 @@ test('Node rooms broadcast Ahri picks, missiles and Charm; rematches preserve th
   assert.equal(room.game.state.players[1].charm, null);
   assert.deepEqual(room.game.state.ahriMissiles, []);
 });
+
+test('Node LeBlanc practice serializes marks and returns and resets the complete kit', () => {
+  const room = new Room('practice'),
+    a = peer();
+  room.join(a.client, 'leblanc');
+  room.enqueue(a.client, 1, { action: 'cast', spell: 'q', target: 1, point: { x: 1450, y: 700 } });
+  for (let i = 0; i < 40; i++) room.step();
+  room.broadcast();
+  let snapshot = a.messages.at(-1)!;
+  assert.ok(snapshot.type === 'state');
+  assert.equal(snapshot.room.game.players[1].sigils.length, 1);
+  room.enqueue(a.client, 2, { action: 'cast', spell: 'w', point: { x: 1200, y: 400 } });
+  for (let i = 0; i < 40; i++) room.step();
+  room.broadcast();
+  snapshot = a.messages.at(-1)!;
+  assert.ok(snapshot.type === 'state');
+  assert.ok(snapshot.room.game.players[0].leblanc!.returns.w);
+  room.resetPractice();
+  assert.equal(room.game.state.players[0].champion, 'leblanc');
+  assert.equal(room.game.state.players[0].leblanc!.lastSpell, null);
+  assert.equal(room.game.state.players[0].leblanc!.returns.w, null);
+  assert.deepEqual(room.game.state.players[1].sigils, []);
+  assert.deepEqual(room.game.state.leblancMissiles, []);
+  assert.deepEqual(room.game.state.chains, []);
+});

@@ -1,6 +1,6 @@
 # Zed / Duel
 
-A minimalist, two-player browser duel with level-18 Zed, Singed or Ahri, full champion kits and Flash. Zed remains the default. Separate TypeScript modules handle combat, rooms, input, rendering and UI. The match host owns the simulation; guests send input commands. The GitHub Pages build hosts matches in a player’s browser, while local/LAN mode retains the Node server.
+A minimalist, two-player browser duel with level-18 Zed, Singed, Ahri or LeBlanc, full champion kits and Flash. Zed remains the default. Separate TypeScript modules handle combat, rooms, input, rendering and UI. The match host owns the simulation; guests send input commands. The GitHub Pages build hosts matches in a player’s browser, while local/LAN mode retains the Node server.
 
 ## Play on GitHub Pages
 
@@ -15,7 +15,7 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:3000**, create a duel, and share the room code. The server prints its LAN address. On another computer on the same network, open that LAN address and join the room. A `localhost` invite only works on the host computer; replace that hostname with the printed LAN IP when sharing it. Each player chooses **Zed**, **Singed** or **Ahri**, then both click **Ready to duel**. You can change your champion in the waiting room or after each match using the results-screen picker. A post-match change opens a fresh lobby in the same room and clears both ready flags. Choices are locked during a round and kept for rematches.
+Open **http://localhost:3000**, create a duel, and share the room code. The server prints its LAN address. On another computer on the same network, open that LAN address and join the room. A `localhost` invite only works on the host computer; replace that hostname with the printed LAN IP when sharing it. Each player chooses **Zed**, **Singed**, **Ahri** or **LeBlanc**, then both click **Ready to duel**. You can change your champion in the waiting room or after each match using the results-screen picker. A post-match change opens a fresh lobby in the same room and clears both ready flags. Choices are locked during a round and kept for rematches.
 
 You can also test with two browser tabs. The second tab can open the first tab's invite URL.
 
@@ -57,6 +57,20 @@ The HUD shows remaining dash charges and their window. Charm interrupts attacks 
 
 Q/W/E cooldowns are divided by three. Spirit Rush has a 10s cooldown after its last cast or window expiry, with 1s between casts. See [Ahri combat notes](docs/ahri.md) for sources, values, approximations and validation. The updated Cloudflare relay must be deployed before publishing Ahri on Pages because its champion allowlist validates guest picks.
 
+## LeBlanc
+
+Choose **LeBlanc** for practice or duels, or open `?practice=1&champion=leblanc` (Pages: `/zed-duel/?practice=1&champion=leblanc`). Her muted violet cloak, gold crown and staff use the same original geometric style and player-color outlines as the roster.
+
+| Input | Action |
+| --- | --- |
+| A over opponent | Approach and cast Sigil of Malice; another ability detonates its mark |
+| Z / Z again | Distortion toward the cursor / return to its origin |
+| E | Ethereal Chains; maintain the tether to root and deal more damage |
+| R | Mimic your last basic spell; mimicked Distortion has a separate return |
+| D | Flash toward the cursor |
+
+Mirror Image grants a brief stealth window and an automatic visual decoy after taking damage at low health. The decoy is harmless and cannot be controlled or targeted. Both dash origins show return timers, and the HUD identifies the spell ready for Mimic. Q/W/E cooldowns are divided by three; passive/R/Flash use 10 seconds. See [LeBlanc combat notes](docs/leblanc.md) for sources, timing, simplifications and checks. Deploy the updated relay before publishing the Pages frontend so guest LeBlanc picks are accepted.
+
 ## Controls
 
 | Input | Action |
@@ -71,7 +85,7 @@ Q/W/E cooldowns are divided by three. Spirit Rush has a 10s cooldown after its l
 | R over opponent / R again | Move into range and cast Death Mark / return |
 | D | Flash toward cursor |
 
-Basic attacks have a short wind-up and follow-through: Zed swipes his blades, Singed swings, and Ahri sends a tiny orb with an impact spark. These visuals follow the existing attack timing and also appear in killcam.
+Basic attacks have a short wind-up and follow-through: Zed swipes his blades, Singed swings, and Ahri and LeBlanc send a tiny magic bolt with an impact spark. These visuals follow the existing attack timing and also appear in killcam.
 
 Use the settings button to rebind keys, including for AZERTY keyboards. Click a binding and press a letter, number or Space; Space works for any spell, summoner or Stop. Each action needs a unique key. Hover an ability to see its description and range. The arena fills the available viewport with a compact health and ability HUD. Both players must agree to a rematch. A disconnect cancels the current duel and returns the remaining player to the room.
 
@@ -88,6 +102,8 @@ src/shared/champions.ts     Champion stat and spell lookups
 src/shared/singed.ts        Poison, adhesive, Fling and potion simulation
 src/shared/ahri-balance.ts  Ahri stats and spell constants
 src/shared/ahri.ts          Orb, flames, Charm and Spirit Rush simulation
+src/shared/leblanc-balance.ts  LeBlanc stats and spell constants
+src/shared/leblanc.ts       Sigils, Distortion, Chains, Mimic and Mirror Image
 src/shared/game.ts        Fixed-step combat simulation
 src/shared/spell-buffer.ts  Short, cancellable spell input buffer
 src/shared/player.ts      Player initialization
@@ -102,6 +118,7 @@ src/client/renderer.ts    Canvas arena, characters and effects
 src/client/ultimate-effects.ts  Ultimate smoke, dash, marks and detonation
 src/client/singed-effects.ts    Singed body, clouds, adhesive and potion visuals
 src/client/ahri-effects.ts      Ahri body, missiles and Charm visuals
+src/client/leblanc-effects.ts   LeBlanc body, decoy, returns, marks and chains
 src/client/killcam.ts           Bounded snapshot history and replay timeline
 src/client/match-summary.ts     Compact post-match comparison
 src/client/main.ts        Lobby, match HUD and settings
@@ -146,7 +163,7 @@ This Node deployment is an alternative to the browser-hosted GitHub Pages build.
 - Original geometric visuals; no League assets, audio or animation rig.
 - Researched balance values, with documented source discrepancies and timing approximations. Exact League parity has not been established.
 - Server-authoritative movement with interpolation; client prediction, reconciliation and lag compensation are follow-up work.
-- Out-of-range Death Mark and Fling approach their target automatically. Location-targeted casts clamp to maximum range.
+- Out-of-range Death Mark, Fling and Sigil of Malice approach their target automatically. Location-targeted casts clamp to maximum range.
 - Rejoining after a lost connection starts fresh; no reconnect grace period or spectators.
 - Optional Google Fonts fall back to local system fonts offline.
 

@@ -25,6 +25,8 @@ export class Player implements PlayerState {
   mark: PlayerState['mark'] = null;
   singed: PlayerState['singed'];
   ahri: PlayerState['ahri'];
+  leblanc: PlayerState['leblanc'];
+  sigils: PlayerState['sigils'] = [];
   charm: PlayerState['charm'] = null;
   poison: PlayerState['poison'] = null;
   grievousUntil = 0;
@@ -36,6 +38,10 @@ export class Player implements PlayerState {
     public champion: ChampionId = 'zed',
   ) {
     this.hp = championStats(champion).hp;
+    this.leblanc =
+      champion === 'leblanc'
+        ? { lastSpell: null, invisibleUntil: 0, clone: null, returns: { w: null, r: null }, dash: null }
+        : null;
     this.ahri =
       champion === 'ahri'
         ? {

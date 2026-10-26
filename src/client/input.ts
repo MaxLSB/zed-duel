@@ -1,3 +1,4 @@
+import { visible } from '../shared/visibility';
 import { distance } from '../shared/geometry';
 import type { SpellKey } from '../shared/balance';
 import type { GameState, Input, PlayerId, Vec } from '../shared/types';
@@ -126,6 +127,7 @@ export class Controls {
       enemy.hp > 0 &&
       !enemy.ultimate &&
       enemy.untargetableUntil <= state.time &&
+      visible(enemy, state.time) &&
       distance(this.cursor, enemy.pos) <= 110
       ? enemy.id
       : undefined;
