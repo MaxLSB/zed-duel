@@ -34,6 +34,6 @@ setInterval(() => {
   while (accumulator >= STEP) {
     match?.step();
     accumulator -= STEP;
-    if (++ticks % 2 === 0) match?.broadcast();
+    if (++ticks % 3 === 0) match?.broadcast();
   }
 }, 8);

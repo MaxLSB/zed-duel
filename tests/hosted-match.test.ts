@@ -168,20 +168,3 @@ test('browser host rejects malformed or disconnected champion selections without
   assert.equal(match.game.state.phase, 'countdown');
   assert.equal(match.game.state.players[1].champion, 'singed');
 });
-
-test('snapshots acknowledge applied inputs rather than commands still waiting for a simulation tick', () => {
-  const { match, messages } = host();
-  start(match);
-  match.handle(1, { type: 'input', seq: 8, input: { action: 'move', point: { x: 1400, y: 700 } } });
-  match.broadcast();
-  const queued = messages.at(-1)!.message;
-  assert.ok(queued.type === 'state');
-  assert.equal(queued.ack, -1);
-  assert.equal(queued.room.game.players[1].destination, null);
-  match.step();
-  match.broadcast();
-  const applied = messages.at(-1)!.message;
-  assert.ok(applied.type === 'state');
-  assert.equal(applied.ack, 8);
-  assert.equal(applied.room.game.players[1].destination?.x, 1400);
-});

@@ -1,4 +1,3 @@
-import { grounded } from './movement';
 import { championStats, potionBonus } from './champions';
 import { bounded, direction, distance, lerp, towards } from './geometry';
 import { SINGED_PASSIVE as PASSIVE, SINGED_SPELLS as SPELLS } from './singed-balance';
@@ -19,7 +18,16 @@ export class SingedKit {
   constructor(private combat: Combat) {}
 
   grounded(p: PlayerState, owner?: PlayerId) {
-    return grounded(p, this.combat.state(), owner);
+    const { time, zones } = this.combat.state();
+    return zones.some(
+      (z) =>
+        z.kind === 'adhesive' &&
+        z.owner !== p.id &&
+        (owner === undefined || z.owner === owner) &&
+        z.created <= time &&
+        z.expires > time &&
+        distance(z.pos, p.pos) <= SPELLS.w.radius + championStats(p.champion).radius,
+    );
   }
 
   moveAirborne(p: PlayerState) {
