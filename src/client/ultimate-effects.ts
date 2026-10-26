@@ -61,13 +61,6 @@ export class UltimateEffects {
     const pulse = 1 + Math.sin(now * (remaining < 1 ? 24 : 9)) * 0.07;
     c.scale(pulse, pulse);
     this.cross(25);
-    c.shadowBlur = 0;
-    c.fillStyle = '#111719';
-    c.fillRect(-30, -67, 60, 29);
-    c.fillStyle = RED;
-    c.font = '24px ui-monospace, monospace';
-    c.textAlign = 'center';
-    c.fillText(remaining.toFixed(1), 0, -44);
     c.restore();
   }
 

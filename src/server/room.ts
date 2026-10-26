@@ -62,7 +62,7 @@ export class Room {
   }
 
   selectChampion(peer: Peer, champion: ChampionId) {
-    if (this.mode !== 'duel' || this.game.state.phase !== 'waiting') return;
+    if (this.mode !== 'duel') return;
     if (!this.game.selectChampion(peer.id, champion)) return;
     this.ready = [false, false];
     this.inputs = [];

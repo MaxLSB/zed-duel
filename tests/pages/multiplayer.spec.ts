@@ -67,9 +67,27 @@ test('Pages completes a relayed duel with WebRTC disabled, rejects a third playe
     await expect(guest.getByRole('heading', { name: 'Defeat' })).toBeVisible();
     await page.screenshot({ path: 'test-results/pages-peer-result.png' });
     await page.getByRole('button', { name: 'Rematch', exact: true }).click();
-    await guest.getByRole('button', { name: 'Rematch', exact: true }).click();
-    await expect(page.locator('#hp-1')).toHaveText('2337 / 2337');
+    await guest.getByLabel('Champion', { exact: true }).selectOption('ahri');
+    await expect(page.getByRole('button', { name: 'Ready to duel' })).toBeEnabled();
+    await page.getByLabel('Champion', { exact: true }).selectOption('singed');
+    for (const view of [page, guest]) {
+      await expect(view.locator('#champion-0')).toHaveText('SINGED');
+      await expect(view.locator('#champion-1')).toHaveText('AHRI');
+      await expect(view.locator('#hp-0')).toHaveText('2282 / 2282');
+      await expect(view.locator('#hp-1')).toHaveText('2358 / 2358');
+      expect(new URL(view.url()).searchParams.get('room')).toBe(code);
+    }
+    await expect(page.locator('[data-spell=q]')).toHaveAccessibleName('Poison Trail');
+    await expect(guest.locator('[data-spell=q]')).toHaveAccessibleName('Orb of Deception');
+    await page.getByRole('button', { name: 'Ready to duel' }).click();
+    await guest.getByRole('button', { name: 'Ready to duel' }).click();
     await expect(page.locator('#overlay')).toHaveClass(/hidden/, { timeout: 6000 });
+    await expect(guest.locator('#overlay')).toHaveClass(/hidden/);
+    await page.keyboard.press('a');
+    await expect(page.locator('[data-spell=q]')).toHaveAttribute('aria-pressed', 'true');
+    await aim(guest, 1450, 700);
+    await guest.keyboard.press('r');
+    await expect(guest.locator('[data-spell=r]')).toHaveClass(/recast/);
     await page.getByRole('button', { name: 'Leave room', exact: true }).click();
     await expect(page).toHaveURL('http://127.0.0.1:3180/zed-duel/');
     await expect(guest.getByRole('button', { name: 'Create a duel' })).toBeVisible();

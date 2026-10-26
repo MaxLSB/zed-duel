@@ -7,7 +7,7 @@ export const SINGED_STATS = {
   ad: 120.8,
   armor: 105.4,
   mr: 66.85,
-  speed: 345,
+  speed: 355,
   attackSpeed: 0.7 + 0.625 * 0.019 * 17,
   attackRange: 125,
   radius: 65,
@@ -16,7 +16,7 @@ export const SINGED_STATS = {
 
 export const SINGED_PASSIVE = {
   name: 'Noxious Slipstream',
-  range: 225,
+  range: 325,
   speed: 0.25,
   duration: 2,
   cooldown: 10,
