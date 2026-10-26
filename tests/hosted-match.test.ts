@@ -168,3 +168,59 @@ test('browser host rejects malformed or disconnected champion selections without
   assert.equal(match.game.state.phase, 'countdown');
   assert.equal(match.game.state.players[1].champion, 'singed');
 });
+
+test('browser Ahri practice serializes Charm and resets missiles, dash charges and the displaced dummy', () => {
+  const { match, messages } = host('practice', 'ahri');
+  match.handle(0, {
+    type: 'input',
+    seq: 1,
+    input: { action: 'cast', spell: 'e', point: { x: 1450, y: 700 } },
+  });
+  for (let i = 0; i < 45; i++) match.step();
+  assert.ok(match.game.state.players[1].charm);
+  assert.ok(match.game.state.players[1].pos.x < 1450);
+  match.handle(0, {
+    type: 'input',
+    seq: 2,
+    input: { action: 'cast', spell: 'r', point: { x: 950, y: 300 } },
+  });
+  match.step();
+  match.broadcast();
+  const snapshot = messages.at(-1)!.message;
+  assert.ok(snapshot.type === 'state');
+  assert.equal(snapshot.room.game.players[0].ahri!.rushCharges, 2);
+  assert.ok(snapshot.room.game.players[0].ahri!.dash);
+  assert.ok(snapshot.room.game.players[1].charm);
+  match.handle(0, { type: 'reset-practice' });
+  assert.equal(match.game.state.players[0].champion, 'ahri');
+  assert.equal(match.game.state.players[0].ahri!.rushCharges, 0);
+  assert.equal(match.game.state.players[0].ahri!.dash, null);
+  assert.equal(match.game.state.players[1].charm, null);
+  assert.equal(match.game.state.players[1].pos.x, 1450);
+  assert.deepEqual(match.game.state.ahriMissiles, []);
+});
+
+test('browser relay preserves an Ahri guest pick through ready changes, rematch and rejoin', () => {
+  const { match, messages } = host('duel', 'singed');
+  assert.ok(match.join('ahri'));
+  match.handle(0, { type: 'ready' });
+  match.handle(1, { type: 'select-champion', champion: 'zed' });
+  const changed = messages.at(-1)!.message;
+  assert.ok(changed.type === 'state');
+  assert.deepEqual(changed.room.ready, [false, false]);
+  match.handle(1, { type: 'select-champion', champion: 'ahri' });
+  match.handle(0, { type: 'ready' });
+  match.handle(1, { type: 'ready' });
+  for (let i = 0; i < 182; i++) match.step();
+  match.handle(1, { type: 'select-champion', champion: 'zed' });
+  assert.equal(match.game.state.players[1].champion, 'ahri');
+  match.game.state.players[0].hp = 0;
+  match.step();
+  match.handle(0, { type: 'ready' });
+  match.handle(1, { type: 'ready' });
+  assert.equal(match.game.state.phase, 'countdown');
+  assert.equal(match.game.state.players[1].champion, 'ahri');
+  match.leave();
+  assert.ok(match.join('ahri'));
+  assert.equal(match.game.state.players[1].champion, 'ahri');
+});

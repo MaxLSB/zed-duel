@@ -15,9 +15,9 @@ export function matchSummary(game: GameState, me: PlayerId, practice: boolean) {
     ['Damage dealt', (s) => Math.round(s.damageDealt).toLocaleString('en-US')],
     ['Basic attacks hit', (s) => s.attacksHit],
   ];
-  if (game.players.every((p) => p.champion === 'singed')) rows.splice(0, 3);
+  if (game.players.every((p) => p.champion !== 'zed')) rows.splice(0, 3);
   const valueFor = (name: string, value: (stats: MatchStats) => string | number, id: PlayerId) =>
-    game.players[id].champion === 'singed' && (name.startsWith('Shurikens') || name === 'Accuracy')
+    game.players[id].champion !== 'zed' && (name.startsWith('Shurikens') || name === 'Accuracy')
       ? '—'
       : value(game.players[id].stats);
   return `<p class="match-duration">Duration <strong>${duration(game.time)}</strong></p>

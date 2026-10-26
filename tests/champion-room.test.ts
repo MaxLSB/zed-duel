@@ -90,3 +90,39 @@ test('Singed practice resets spells and displaced dummy, and remains private', (
   assert.equal(room.game.state.zones.length, 0);
   assert.ok(Object.values(singed.cooldowns).every((cd) => cd === 0));
 });
+
+test('Node rooms broadcast Ahri picks, missiles and Charm; rematches preserve the pick and clear combat', () => {
+  const room = new Room(),
+    a = peer(),
+    b = peer();
+  room.join(a.client, 'ahri');
+  room.join(b.client, 'singed');
+  room.setReady(a.client);
+  room.selectChampion(b.client, 'ahri');
+  assert.deepEqual(room.ready, [false, false]);
+  room.setReady(a.client);
+  room.setReady(b.client);
+  for (let i = 0; i < 182; i++) room.step();
+  room.game.state.players[1].pos = { x: 1000, y: 700 };
+  room.enqueue(a.client, 1, { action: 'cast', spell: 'e', point: { x: 1000, y: 700 } });
+  for (let i = 0; i < 20; i++) room.step();
+  room.broadcast();
+  let snapshot = b.messages.at(-1)!;
+  assert.ok(snapshot.type === 'state');
+  assert.equal(snapshot.room.game.ahriMissiles[0].kind, 'charm');
+  for (let i = 0; i < 20; i++) room.step();
+  room.broadcast();
+  snapshot = b.messages.at(-1)!;
+  assert.ok(snapshot.type === 'state');
+  assert.ok(snapshot.room.game.players[1].charm);
+  room.game.state.players[1].hp = 0;
+  room.step();
+  room.setReady(a.client);
+  room.setReady(b.client);
+  assert.deepEqual(
+    room.game.state.players.map((p) => p.champion),
+    ['ahri', 'ahri'],
+  );
+  assert.equal(room.game.state.players[1].charm, null);
+  assert.deepEqual(room.game.state.ahriMissiles, []);
+});

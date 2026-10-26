@@ -1,5 +1,8 @@
 import './style.css';
-import { championName, championStats, championSpells } from '../shared/champions';
+import { CHAMPIONS, championName, championStats, championSpells } from '../shared/champions';
+import { isChampion } from '../shared/protocol';
+import { ahriDescriptions } from './ahri-abilities';
+import { AHRI_PASSIVE } from '../shared/ahri-balance';
 import { singedDescriptions } from './singed-abilities';
 import { SINGED_PASSIVE } from '../shared/singed-balance';
 import { PASSIVE, SPELL_KEYS, SPELLS } from '../shared/balance';
@@ -86,11 +89,11 @@ function connect(message: ClientMessage) {
   lastConnectionRequest = message;
   connection.send(message);
 }
-let selectedChampion: ChampionId =
-  new URLSearchParams(location.search).get('champion') === 'singed' ? 'singed' : 'zed';
+const urlChampion = new URLSearchParams(location.search).get('champion');
+let selectedChampion: ChampionId = isChampion(urlChampion) ? urlChampion : 'zed';
 let displayedChampion: ChampionId | null = null;
 function championPicker(champion: ChampionId) {
-  return `<div class="champion-picker"><label for="champion-select">Champion</label><select id="champion-select"><option value="zed" ${champion === 'zed' ? 'selected' : ''}>Zed</option><option value="singed" ${champion === 'singed' ? 'selected' : ''}>Singed</option></select></div>`;
+  return `<div class="champion-picker"><label for="champion-select">Champion</label><select id="champion-select">${CHAMPIONS.map((id) => `<option value="${id}" ${champion === id ? 'selected' : ''}>${championName(id)}</option>`).join('')}</select></div>`;
 }
 function showChampion(champion: ChampionId) {
   if (displayedChampion === champion) return;
@@ -99,27 +102,31 @@ function showChampion(champion: ChampionId) {
   for (const key of ['passive', ...SPELL_KEYS] as const) {
     const name =
       key === 'passive'
-        ? champion === 'singed'
-          ? SINGED_PASSIVE.name
-          : 'Contempt for the Weak'
+        ? champion === 'ahri'
+          ? AHRI_PASSIVE.name
+          : champion === 'singed'
+            ? SINGED_PASSIVE.name
+            : 'Contempt for the Weak'
         : spells[key].name;
     const slot = $(`[data-spell="${key}"]`);
     slot.setAttribute('aria-label', name);
     slot.querySelector('.ability-icon')!.innerHTML = icon(
-      champion === 'singed' && key !== 'd' ? `singed-${key}` : key,
+      champion !== 'zed' && key !== 'd' ? `${champion}-${key}` : key,
     );
     $(`#tip-${key}`).innerHTML =
-      `<strong>${name}</strong>${(champion === 'singed' ? singedDescriptions : descriptions)[key]}`;
+      `<strong>${name}</strong>${{ zed: descriptions, singed: singedDescriptions, ahri: ahriDescriptions }[champion][key]}`;
   }
   $('#cast-help').textContent =
-    champion === 'singed'
-      ? 'Toggle Poison Trail while moving. Aim Mega Adhesive and Flash with your cursor. Hover your opponent for Fling. Insanity Potion buffs you immediately.'
-      : 'Aim Shuriken, Living Shadow and Flash with your cursor. Hover your opponent for Death Mark.';
+    champion === 'ahri'
+      ? 'Aim Orb of Deception, Charm, Spirit Rush and Flash with your cursor. Fox-Fire seeks nearby enemies. Recast Spirit Rush for up to three dashes.'
+      : champion === 'singed'
+        ? 'Toggle Poison Trail while moving. Aim Mega Adhesive and Flash with your cursor. Hover your opponent for Fling. Insanity Potion buffs you immediately.'
+        : 'Aim Shuriken, Living Shadow and Flash with your cursor. Hover your opponent for Death Mark.';
 }
 $('#overlay').addEventListener('change', (event) => {
   const select = event.target;
   if (!(select instanceof HTMLSelectElement) || select.id !== 'champion-select') return;
-  selectedChampion = select.value === 'singed' ? 'singed' : 'zed';
+  selectedChampion = isChampion(select.value) ? select.value : 'zed';
   if (connection.room) connection.send({ type: 'select-champion', champion: selectedChampion });
   else {
     showChampion(selectedChampion);
@@ -154,7 +161,7 @@ function showLobby() {
   }
   $('#clock').textContent = '00:00';
   document.querySelectorAll('.ability').forEach((slot) => {
-    slot.classList.remove('on-cooldown', 'recast', 'ability-active');
+    slot.classList.remove('on-cooldown', 'recast', 'ability-active', 'charge-window', 'passive-counter');
     slot.removeAttribute('aria-pressed');
     slot.querySelector('.cooldown')!.textContent = '';
   });
@@ -172,7 +179,7 @@ function renderRoom(room: RoomState) {
   $('#room-label').textContent = practice ? 'SOLO PRACTICE' : `ROOM ${room.code}`;
   $('#copy-room').hidden = practice;
   $('#reset-practice').hidden = !practice;
-  const practiceURL = `?practice=1${game.players[me].champion === 'singed' ? '&champion=singed' : ''}`;
+  const practiceURL = `?practice=1${game.players[me].champion !== 'zed' ? `&champion=${game.players[me].champion}` : ''}`;
   if (practice && location.search !== practiceURL) history.replaceState({}, '', `${basePath}${practiceURL}`);
   $('#leave').hidden = false;
   $('#killcam-bar').hidden = !renderer.killcam.active;
@@ -227,19 +234,27 @@ function renderHUD(game: GameState, room: RoomState) {
                   : 'WAITING'
               : p.airborne
                 ? 'AIRBORNE'
-                : p.rootUntil > game.time
-                  ? 'ROOTED'
-                  : p.poison
-                    ? 'POISONED'
-                    : p.singed && p.singed.insanityUntil > game.time
-                      ? 'INSANITY POTION'
-                      : '';
+                : p.charm && p.charm.until > game.time
+                  ? 'CHARMED'
+                  : p.ahri?.dash
+                    ? 'SPIRIT RUSH'
+                    : p.rootUntil > game.time
+                      ? 'ROOTED'
+                      : p.poison
+                        ? 'POISONED'
+                        : p.singed && p.singed.insanityUntil > game.time
+                          ? 'INSANITY POTION'
+                          : '';
   }
   $('#clock').textContent = duration(game.time);
   const p = game.players[me];
   for (const key of ['passive', ...SPELL_KEYS] as const) {
     const slot = $<HTMLButtonElement>(`[data-spell="${key}"]`);
-    const remaining = Math.max(0, (key === 'passive' ? p.passiveAt : p.cooldowns[key]) - game.time);
+    const rush = key === 'r' && p.ahri && p.ahri.rushUntil > game.time && p.ahri.rushCharges > 0;
+    const remaining = Math.max(
+      0,
+      (rush ? p.ahri!.rushAt : key === 'passive' ? p.passiveAt : p.cooldowns[key]) - game.time,
+    );
     const shadow =
       key === 'w' || key === 'r'
         ? p.shadows.find((s) => s.kind === key && !s.swapped && s.swapUntil > game.time)
@@ -256,19 +271,26 @@ function renderHUD(game: GameState, room: RoomState) {
     slot.classList.toggle('ability-active', active);
     if (key === 'q' && p.singed) slot.setAttribute('aria-pressed', String(p.singed.poisonOn));
     else slot.removeAttribute('aria-pressed');
-    slot.querySelector('.cooldown')!.textContent = active
-      ? key === 'r'
-        ? `${Math.ceil(p.singed!.insanityUntil - game.time)}s`
-        : 'ON'
-      : shadow
-        ? '↔'
-        : remaining > 0
-          ? remaining >= 10
-            ? `${Math.ceil(remaining)}`
-            : remaining.toFixed(1)
-          : '';
+    slot.querySelector('.cooldown')!.textContent =
+      key === 'passive' && p.ahri
+        ? `${p.ahri.essenceHits ?? 0}/${AHRI_PASSIVE.hits}`
+        : rush
+          ? `${p.ahri!.rushCharges} · ${Math.ceil(p.ahri!.rushUntil - game.time)}s`
+          : active
+            ? key === 'r' || key === 'q'
+              ? ''
+              : 'ON'
+            : shadow
+              ? '↔'
+              : remaining > 0
+                ? remaining >= 10
+                  ? `${Math.ceil(remaining)}`
+                  : remaining.toFixed(1)
+                : '';
     slot.classList.toggle('on-cooldown', remaining > 0 && !shadow && !active);
-    slot.classList.toggle('recast', !!shadow);
+    slot.classList.toggle('recast', !!shadow || !!rush);
+    slot.classList.toggle('charge-window', !!rush);
+    slot.classList.toggle('passive-counter', key === 'passive' && !!p.ahri);
   }
 }
 renderer.onReplayFrame = (game) => {

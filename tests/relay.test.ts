@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { validRelayData } from '../src/shared/signaling';
 
 test('relay limits guests to validated game inputs and champion handshake', () => {
-  for (const champion of ['zed', 'singed'])
+  for (const champion of ['zed', 'singed', 'ahri'])
     assert.equal(validRelayData(1, { type: 'hello', champion }), true);
   assert.equal(validRelayData(1, { type: 'hello', champion: 'unknown' }), false);
   assert.equal(validRelayData(1, { type: 'input', seq: 1, input: { action: 'stop' } }), true);

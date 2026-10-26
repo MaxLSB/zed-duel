@@ -5,7 +5,33 @@ export interface Vec {
   y: number;
 }
 export type PlayerId = 0 | 1;
-export type ChampionId = 'zed' | 'singed';
+export type ChampionId = 'zed' | 'singed' | 'ahri';
+export interface AhriState {
+  essenceHits: number;
+  fireCastId: number;
+  hasteUntil: number;
+  fires: number;
+  fireAt: number;
+  fireUntil: number;
+  fireHits: number;
+  rushUntil: number;
+  rushCharges: number;
+  rushAt: number;
+  dash: { from: Vec; to: Vec; started: number; ends: number } | null;
+}
+export interface AhriMissile {
+  id: number;
+  castId: number;
+  owner: PlayerId;
+  kind: 'orb' | 'charm' | 'fire' | 'rush';
+  pos: Vec;
+  velocity: Vec;
+  remaining: number;
+  returning: boolean;
+  hit: boolean;
+  damage: number;
+  expires: number;
+}
 export interface SingedState {
   poisonOn: boolean;
   cloudAt: number;
@@ -61,6 +87,8 @@ export interface PlayerState {
   id: PlayerId;
   champion: ChampionId;
   singed: SingedState | null;
+  ahri: AhriState | null;
+  charm: { owner: PlayerId; until: number } | null;
   poison: { owner: PlayerId; until: number; tickAt: number } | null;
   grievousUntil: number;
   rootUntil: number;
@@ -100,6 +128,8 @@ export interface Effect {
   owner: PlayerId;
   at: number;
   amount?: number;
+  // Basic attacks capture their origin; Fling's existing impact has no origin.
+  from?: Vec;
 }
 export interface GameState {
   time: number;
@@ -107,6 +137,7 @@ export interface GameState {
   countdown: number;
   players: [PlayerState, PlayerState];
   projectiles: Projectile[];
+  ahriMissiles: AhriMissile[];
   zones: GroundZone[];
   effects: Effect[];
   winner: PlayerId | 'draw' | null;

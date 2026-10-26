@@ -177,6 +177,47 @@ test('Fling approaches without spending cooldown, respects Stop, and requires a 
   assert.ok(p.cooldowns.e > game.state.time);
 });
 
+test('Fling commits at the edge of range even when the target runs away during windup', () => {
+  const game = duel(S.e.range + SINGED_STATS.radius + STATS.radius),
+    [p, enemy] = game.state.players;
+  const start = { ...enemy.pos };
+  game.input(1, { action: 'move', point: { x: 2200, y: 700 } });
+  assert.equal(cast(game, 'e'), true);
+  advance(game, 0.2);
+  assert.ok(enemy.pos.x > start.x);
+  assert.ok(enemy.pos.x - p.pos.x > S.e.range + SINGED_STATS.radius + STATS.radius);
+  assert.equal(Boolean(enemy.airborne), false);
+  advance(game, 0.1);
+  assert.ok(enemy.airborne);
+  assert.ok(enemy.airborne.from.x > start.x);
+  assert.ok(p.cooldowns.e > game.state.time);
+  near(p.stats.damageDealt, ((S.e.damage + STATS.hp * S.e.healthRatio) * 100) / (100 + STATS.mr));
+  game.input(0, { action: 'stop' });
+  const damage = p.stats.damageDealt;
+  advance(game, 0.8);
+  assert.equal(enemy.airborne, null);
+  assert.ok(enemy.pos.x < p.pos.x);
+  near(p.stats.damageDealt, damage);
+});
+
+test('Fling approach commits on reaching a fleeing target instead of repeatedly restarting the cast', () => {
+  const game = duel(400),
+    [p, enemy] = game.state.players;
+  cast(game, 'r');
+  game.input(1, { action: 'move', point: { x: 2300, y: 700 } });
+  assert.equal(cast(game, 'e'), true);
+  assert.equal(p.castUntil, 0);
+  for (let i = 0; i < 180 && p.castUntil <= game.state.time; i++) game.step();
+  assert.ok(p.castUntil > game.state.time);
+  assert.ok(p.cooldowns.e <= game.state.time);
+  const targetAtStart = enemy.pos.x;
+  advance(game, 0.3);
+  assert.ok(enemy.airborne);
+  assert.ok(enemy.airborne.from.x > targetAtStart);
+  assert.ok(p.stats.damageDealt > 0);
+  assert.ok(p.cooldowns.e > game.state.time);
+});
+
 test('Fling deals magic and max-health damage, displaces over Singed, disables casts in flight and roots on his glue', () => {
   const game = duel(),
     [p, enemy] = game.state.players;
@@ -231,21 +272,36 @@ test('Fling can be buffered behind adhesive; new movement orders cancel the buff
   }
 });
 
-test('Insanity Potion is untargeted, refreshes without stacking, and expires back to base stats', () => {
+test('Insanity Potion lasts 10 seconds, then requires a full 10-second cooldown before recasting', () => {
   const game = duel(800),
     p = game.state.players[0];
   p.hp = 1000;
   assert.equal(game.input(0, { action: 'cast', spell: 'r', point: p.pos }), true);
   assert.equal(p.ultimate, null);
   assert.equal(p.shadows.length, 0);
+  near(p.singed!.insanityUntil, 10);
+  near(p.cooldowns.r, 20);
   advance(game, 1);
   near(p.hp, 1000 + SINGED_STATS.hpRegen + S.r.bonus / 5);
   assert.equal(potionBonus(p, game.state.time), 85);
-  advance(game, 10);
-  cast(game, 'r');
-  near(p.singed!.insanityUntil, game.state.time + 25);
+  advance(game, 8.7);
+  assert.equal(cast(game, 'r'), false);
   assert.equal(potionBonus(p, game.state.time), 85);
-  advance(game, 25.1);
+  advance(game, 0.4);
+  assert.equal(potionBonus(p, game.state.time), 0);
+  assert.equal(cast(game, 'r'), false);
+  near(p.cooldowns.r - p.singed!.insanityUntil, 10);
+  const hp = p.hp;
+  advance(game, 0.2);
+  near(p.hp - hp, SINGED_STATS.hpRegen * 0.2);
+  advance(game, 9.3);
+  assert.equal(cast(game, 'r'), false);
+  advance(game, 0.5);
+  assert.equal(cast(game, 'r'), true);
+  near(p.singed!.insanityUntil, game.state.time + 10);
+  near(p.cooldowns.r, game.state.time + 20);
+  assert.equal(potionBonus(p, game.state.time), 85);
+  advance(game, 10.1);
   assert.equal(potionBonus(p, game.state.time), 0);
 });
 

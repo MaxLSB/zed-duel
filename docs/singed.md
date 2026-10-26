@@ -20,10 +20,10 @@ Fetching Riot Data Dragon's Singed JSON was unsuccessful in this environment. No
 | Q | Toggle poison; 180-radius clouds last 3.25s, poison lasts 2s, magic damage ticks every 0.25s | 1/3s toggle lockout |
 | W | Place a 265-radius field within 1,000 units; 70% slow and grounding while inside; lasts 3s | 13/3s |
 | E | Targeted melee Fling, 550-unit displacement; landing in the caster's adhesive roots for 2s | 8/3s |
-| R | 25s of +85 AP, armor, MR, flat speed and health regeneration per 5s; poison applies 40% healing reduction | 10s |
+| R | 10s of +85 AP, armor, MR, flat speed and health regeneration per 5s; poison applies 40% healing reduction | 10s |
 | D | Shared Flash, 400 units | 10s |
 
-These cooldowns deliberately follow the existing Zed sandbox rules, including dividing Q's static toggle lockout by three. Mana is omitted. Recasting R refreshes its timer; bonuses never stack. There is no mana regeneration to apply. Buffed health regeneration is +17 HP/second, before healing reduction.
+These cooldowns deliberately follow the existing Zed sandbox rules, including dividing Q's static toggle lockout by three. Mana is omitted. R lasts 10 seconds as a deliberate duel override, followed by a 10-second cooldown starting when the buff ends (20 seconds between casts). Bonuses never stack. A shrinking ring shows the remaining duration to both players and turns amber for the final three seconds. The R icon is highlighted without a number while active; its numeric cooldown appears only after the buff ends. There is no mana regeneration to apply. Buffed health regeneration is +17 HP/second, before healing reduction.
 
 Q deals 15 + 10.625% AP per tick. Overlapping clouds from one caster refresh poison without multiplying ticks. E deals 90 + 8% target maximum HP + 55% AP as magic damage. Damage uses the defender's champion stats and potion defenses; Zed's passive also uses the defender's actual maximum health. Singed has no Zed attack passive, shurikens or shadows.
 
@@ -33,7 +33,7 @@ The Node server and browser host validate champion IDs. Initial host/guest picks
 
 - The existing 60 Hz simulation resolves all timings. Poison clouds spawn every 0.25s, 20 units behind Singed. This simplifies League's movement-dependent cloud placement and cadence. Contact is checked every simulation tick; poison ticks every 0.25s, including initial contact. Exact refresh/expiry tick counts are not claimed to match the client.
 - W locks movement/casts for 0.25s and becomes active 0.375s after input. Out-of-range placement clamps to range. Its travel is a telegraphed field, not a projectile that can collide with wind walls.
-- E approaches until within 125 units plus both collision radii. Its 0.25s cast revalidates the target before spending cooldown or dealing damage. Flight takes 0.693s, linearly across the arena with a visual arc. Landing clamps to arena bounds. Root applies only on the caster's active adhesive. Terrain and airborne immunity are absent.
+- E approaches until within 125 units plus both collision radii. Range is checked once when its 0.25s cast starts; moving out of range during the windup cannot cancel the grab. Death, untargetability, an airborne target or interruption of Singed still cancels it without spending cooldown. Damage and displacement resolve from the current positions when the windup ends. Flight takes 0.693s, linearly across the arena with a visual arc. Landing clamps to arena bounds. Root applies only on the caster's active adhesive. Terrain and airborne immunity are absent.
 - Grounding and roots prevent Flash, Death Mark activation/return and Living Shadow swaps. A fresh shadow, shuriken or slash can still cast. Airborne targets cannot cast; Stop cancels follow-up attacks and pending approach orders.
 - Passive has one opposing champion to trigger against. Movement uses the existing linear arena speed model without League's movement-speed soft caps.
 - Existing poison continues through Zed's untargetable ultimate; new cloud contact does not apply poison while untargetable. Potion poison refreshes healing reduction for one second on each damage tick. The only healing system here is regeneration.

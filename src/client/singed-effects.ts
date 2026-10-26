@@ -68,12 +68,25 @@ export class SingedEffects {
     c.save();
     c.translate(pos.x, pos.y);
     c.globalAlpha = p.hp <= 0 ? 0.2 : 1;
-    if (p.singed!.insanityUntil > now) {
-      c.strokeStyle = '#c6df74';
-      c.lineWidth = 4;
+    const potionLeft = p.singed!.insanityUntil - now;
+    if (potionLeft > 0 && p.hp > 0) {
+      const fraction = clamp(potionLeft / SINGED_SPELLS.r.duration, 0, 1);
+      const start = -Math.PI / 2,
+        end = start + Math.PI * 2 * fraction;
+      const tint = potionLeft <= 3 ? '#e2b76b' : '#c6df74';
+      c.strokeStyle = '#c6df7426';
+      c.lineWidth = 5;
       c.beginPath();
-      c.arc(0, 0, 84 + Math.sin(now * 6) * 4, now, now + Math.PI * 1.5);
+      c.arc(0, 0, 86, 0, Math.PI * 2);
       c.stroke();
+      c.strokeStyle = tint;
+      c.beginPath();
+      c.arc(0, 0, 86, start, end);
+      c.stroke();
+      c.fillStyle = tint;
+      c.beginPath();
+      c.arc(Math.cos(end) * 86, Math.sin(end) * 86, 4, 0, Math.PI * 2);
+      c.fill();
     }
     if (p.singed!.slipstreamUntil > now) {
       c.strokeStyle = color;

@@ -1,8 +1,10 @@
 import { championStats, potionBonus } from './champions';
-import { SINGED_PASSIVE, SINGED_SPELLS } from './singed-balance';
+import { SINGED_SPELLS } from './singed-balance';
 import { SingedKit } from './singed';
+import { AhriKit } from './ahri';
 import { PASSIVE, SPELLS, STATS, STEP } from './balance';
 import { bounded, direction, distance, segmentDistance, towards } from './geometry';
+import { movePlayer } from './movement';
 import { Player } from './player';
 import { SpellBuffer, SPELL_BUFFER_WINDOW } from './spell-buffer';
 import type { CastInput } from './spell-buffer';
@@ -27,20 +29,31 @@ export class Game {
   private spellBuffer = new SpellBuffer();
   private approachTargets = new Map<PlayerId, PlayerId>();
 
+  private interrupt = (p: PlayerState) => {
+    this.spellBuffer.clear(p.id);
+    this.cancelApproach(p);
+    p.destination = null;
+    p.attackMove = null;
+    p.attacking = false;
+    p.windupUntil = 0;
+    p.castUntil = this.state.time;
+    if (p.ahri) p.ahri.dash = null;
+  };
+
+  private ahri = new AhriKit({
+    state: () => this.state,
+    schedule: (delay, run) => this.schedule(delay, run),
+    damage: (owner, target, raw, type) => this.damage(owner, target, raw, type),
+    interrupt: this.interrupt,
+    healed: (p) => this.effect('passive', p.pos, p.id),
+  });
+
   private singed = new SingedKit({
     state: () => this.state,
     schedule: (delay, run) => this.schedule(delay, run),
     damage: (owner, target, raw, type) => this.damage(owner, target, raw, type),
     effect: (kind, pos, owner) => this.effect(kind, pos, owner),
-    interrupt: (p) => {
-      this.spellBuffer.clear(p.id);
-      this.cancelApproach(p);
-      p.destination = null;
-      p.attackMove = null;
-      p.attacking = false;
-      p.windupUntil = 0;
-      p.castUntil = this.state.time;
-    },
+    interrupt: this.interrupt,
   });
 
   constructor(
@@ -65,12 +78,14 @@ export class Game {
       players: [new Player(0, this.champions[0]), new Player(1, this.champions[1])],
       zones: [],
       projectiles: [],
+      ahriMissiles: [],
       effects: [],
       winner: null,
     };
   }
 
   start(countdown = 3) {
+    this.ahri.reset();
     this.state = this.initialState();
     this.state.phase = countdown > 0 ? 'countdown' : 'active';
     this.state.countdown = countdown;
@@ -82,6 +97,7 @@ export class Game {
   }
 
   disconnect() {
+    this.ahri.reset();
     this.state = this.initialState();
     this.scheduled = [];
     this.groups.clear();
@@ -92,6 +108,7 @@ export class Game {
   input(id: PlayerId, input: Input): boolean {
     const p = this.state.players[id];
     if (this.state.phase !== 'active' || id === this.stationary) return false;
+    if (p.charm && p.charm.until > this.state.time) return false;
     if (input.action === 'cast') return this.requestCast(p, input);
     this.spellBuffer.clear(id);
     this.cancelApproach(p);
@@ -137,6 +154,7 @@ export class Game {
     this.scheduled = this.scheduled.filter((event) => event.at > s.time);
     due.sort((a, b) => a.at - b.at).forEach((event) => event.run());
     this.singed.update();
+    this.ahri.update(dt);
     this.updateProjectiles(dt);
     for (const p of s.players) this.updateMark(p);
     s.effects = s.effects.filter((effect) => s.time - effect.at < 0.8);
@@ -160,8 +178,16 @@ export class Game {
   private schedule(delay: number, run: () => void) {
     this.scheduled.push({ at: this.state.time + delay, run });
   }
-  private effect(kind: Effect['kind'], pos: Vec, owner: PlayerId, amount?: number) {
-    this.state.effects.push({ id: ++this.serial, kind, pos: { ...pos }, owner, at: this.state.time, amount });
+  private effect(kind: Effect['kind'], pos: Vec, owner: PlayerId, amount?: number, from?: Vec) {
+    this.state.effects.push({
+      id: ++this.serial,
+      kind,
+      pos: { ...pos },
+      owner,
+      at: this.state.time,
+      amount,
+      ...(from ? { from: { ...from } } : {}),
+    });
   }
 
   private updatePlayer(p: PlayerState, dt: number) {
@@ -173,6 +199,12 @@ export class Game {
       (stats.hpRegen + potionBonus(p, now) / 5) * (p.grievousUntil > now ? 1 - SINGED_SPELLS.r.grievous : 1);
     p.hp = Math.min(stats.hp, p.hp + regen * dt);
     if (this.singed.moveAirborne(p)) return;
+    if (p.charm && (p.charm.until <= now || this.state.players[p.charm.owner].hp <= 0)) p.charm = null;
+    if (p.charm) {
+      movePlayer(p, this.state, dt);
+      return;
+    }
+    if (this.ahri.moveDash(p)) return;
     if (!this.targetable(p) || p.castUntil > now) return;
     const enemy = this.enemy(p);
     if (this.approachTargets.has(p.id)) {
@@ -191,19 +223,22 @@ export class Game {
       p.destination = distance(p.pos, enemy.pos) > attackRange ? { ...enemy.pos } : null;
       if (!p.destination && p.attackAt <= now && p.windupUntil === 0) this.attack(p, enemy);
     }
-    if (!p.destination || p.windupUntil > now || p.rootUntil > now || p.id === this.stationary) return;
-    const target = p.destination;
-    p.facing = Math.atan2(target.y - p.pos.y, target.x - p.pos.x);
-    const slow = Math.max(p.slowUntil > now ? p.slow : 0, this.singed.grounded(p) ? SINGED_SPELLS.w.slow : 0);
-    const slipstream = p.singed && p.singed.slipstreamUntil > now ? 1 + SINGED_PASSIVE.speed : 1;
-    const speed = (stats.speed + potionBonus(p, now)) * slipstream * (1 - slow);
-    p.pos = bounded(towards(p.pos, target, speed * dt));
-    if (distance(p.pos, target) < 1) p.destination = null;
+    if (p.id !== this.stationary) movePlayer(p, this.state, dt);
   }
 
   private separatePlayers() {
     const [a, b] = this.state.players;
-    if (!this.targetable(a) || !this.targetable(b) || a.mark || b.mark || a.airborne || b.airborne) return;
+    if (
+      !this.targetable(a) ||
+      !this.targetable(b) ||
+      a.mark ||
+      b.mark ||
+      a.airborne ||
+      b.airborne ||
+      a.ahri?.dash ||
+      b.ahri?.dash
+    )
+      return;
     const d = distance(a.pos, b.pos);
     if (d >= 2 * STATS.radius) return;
     const v = d > 0 ? direction(a.pos, b.pos) : { x: 1, y: 0 };
@@ -238,7 +273,7 @@ export class Game {
         p.passiveAt <= this.state.time;
       this.damage(p.id, enemy, stats.ad, 'physical');
       p.stats.attacksHit++;
-      this.effect('attack', enemy.pos, p.id);
+      this.effect('attack', enemy.pos, p.id, undefined, p.pos);
       if (passive) {
         this.damage(p.id, enemy, enemyStats.hp * PASSIVE.ratio, 'magic');
         p.passiveAt = this.state.time + PASSIVE.cooldown;
@@ -269,9 +304,18 @@ export class Game {
     const now = this.state.time;
     const { spell: key, target } = input;
     const shadow = this.recastShadow(p, key);
-    const displacement = key === 'd' || (p.champion === 'zed' && (key === 'r' || (key === 'w' && !!shadow)));
+    const displacement =
+      key === 'd' ||
+      (p.champion === 'ahri' && key === 'r') ||
+      (p.champion === 'zed' && (key === 'r' || (key === 'w' && !!shadow)));
     if (displacement && (p.rootUntil > now || this.singed.grounded(p))) return null;
-    if (p.airborne) return null;
+    if (p.airborne || (p.charm && p.charm.until > now)) return null;
+    if (p.ahri) {
+      if (p.ahri.dash && key !== 'w') return null;
+      const cooldown =
+        key === 'r' && p.ahri.rushUntil > now && p.ahri.rushCharges > 0 ? p.ahri.rushAt : p.cooldowns[key];
+      return Math.max(now, p.untargetableUntil, cooldown, key === 'w' || key === 'd' ? 0 : p.castUntil);
+    }
     if (p.champion === 'singed') {
       const enemy = this.enemy(p);
       if (key === 'e' && (target !== enemy.id || !this.targetable(enemy) || enemy.hp <= 0 || enemy.airborne))
@@ -339,7 +383,7 @@ export class Game {
     }
     const spell = SPELLS[key];
     const enemy = this.enemy(p);
-    const targeted = p.champion === 'singed' ? key === 'e' : key === 'r';
+    const targeted = (p.champion === 'singed' && key === 'e') || (p.champion === 'zed' && key === 'r');
     if (targeted && distance(p.pos, enemy.pos) > this.targetedRange(p, enemy)) {
       this.approachTargets.set(p.id, enemy.id);
       p.destination = { ...enemy.pos };
@@ -350,6 +394,7 @@ export class Game {
     }
     if (targeted) this.cancelApproach(p);
     if (p.champion === 'singed' && key !== 'd') return this.singed.cast(p, key, point);
+    if (p.champion === 'ahri' && key !== 'd') return this.ahri.cast(p, key, point);
     p.cooldowns[key] = now + spell.cooldown;
     if (key === 'q') this.shuriken(p, point);
     if (key === 'w') this.shadow(p, point);
@@ -390,7 +435,7 @@ export class Game {
     p.facing = Math.atan2(point.y - p.pos.y, point.x - p.pos.x);
     for (const origin of this.origins(p))
       this.schedule(Math.max(SPELLS.q.cast, origin.readyAt - this.state.time), () => {
-        if (!origin.alive()) return;
+        if (!origin.alive() || (p.charm && p.charm.until > this.state.time)) return;
         const pos = { ...origin.pos() };
         const v =
           distance(pos, point) > 0 ? direction(pos, point) : { x: Math.cos(p.facing), y: Math.sin(p.facing) };
@@ -539,13 +584,14 @@ export class Game {
     owner: PlayerId,
     target: PlayerState,
     raw: number,
-    type: 'physical' | 'magic',
+    type: 'physical' | 'magic' | 'true',
     store = true,
   ) {
-    if (store && target.mark?.owner === owner) target.mark.stored += raw;
+    if (target.hp <= 0) return;
+    if (store && type !== 'true' && target.mark?.owner === owner) target.mark.stored += raw;
     const stats = championStats(target.champion);
     const resistance = (type === 'physical' ? stats.armor : stats.mr) + potionBonus(target, this.state.time);
-    const amount = (raw * 100) / (100 + resistance);
+    const amount = type === 'true' ? raw : (raw * 100) / (100 + resistance);
     this.state.players[owner].stats.damageDealt += Math.min(target.hp, amount);
     target.hp = Math.max(0, target.hp - amount);
     this.effect('hit', target.pos, owner, amount);
