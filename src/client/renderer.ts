@@ -1,3 +1,4 @@
+import type { MovementPrediction } from './movement-prediction';
 import { championStats, championSpells } from '../shared/champions';
 import { SINGED_SPELLS } from '../shared/singed-balance';
 import { bounded, towards } from '../shared/geometry';
@@ -18,6 +19,8 @@ export class Renderer {
   private current: GameState | null = null;
   private previous: GameState | null = null;
   private received = 0;
+  private interval = 50;
+  prediction: MovementPrediction | null = null;
   private finishedAt = 0;
   private scale = 1;
   private offset = { x: 0, y: 0 };
@@ -41,6 +44,8 @@ export class Renderer {
   update(state: GameState) {
     if (state.phase === 'finished' && this.current?.phase !== 'finished') this.finishedAt = performance.now();
     this.killcam.record(state);
+    const elapsed = state.time - (this.current?.time ?? state.time);
+    if (elapsed > 0) this.interval = clamp(elapsed * 1000, 1000 / 60, 100);
     this.previous = this.current;
     this.current = state;
     this.received = performance.now();
@@ -53,6 +58,9 @@ export class Renderer {
     this.marker = null;
     this.replayTime = -1;
     this.current = null;
+    this.prediction?.clear();
+    this.prediction = null;
+    this.interval = 50;
     this.previous = null;
   }
   toWorld = (x: number, y: number): Vec => {
@@ -112,14 +120,14 @@ export class Renderer {
         playback?.time ??
         s.time +
           (s.phase === 'active'
-            ? Math.min(0.05, (performance.now() - this.received) / 1000)
+            ? Math.min(this.interval / 1000, (performance.now() - this.received) / 1000)
             : s.phase === 'finished'
               ? Math.min(1, (performance.now() - this.finishedAt) / 1000)
               : 0);
       this.singedEffects.zones(s, now, COLORS);
       for (const p of s.players)
         if (p.ultimate) this.ultimateEffects.approach(p, s.players[p.ultimate.target], now);
-      const alpha = playback?.alpha ?? clamp((performance.now() - this.received) / 50, 0, 1);
+      const alpha = playback?.alpha ?? clamp((performance.now() - this.received) / this.interval, 0, 1);
       for (const p of s.players) {
         for (const shadow of p.shadows) {
           const travel = clamp((now - shadow.created) / (shadow.readyAt - shadow.created || 1), 0, 1);
@@ -127,7 +135,8 @@ export class Renderer {
           this.ninja(pos, p.facing, COLORS[p.id], 0.25);
         }
       }
-      const self = s.players[this.player];
+      const predicted = !playback ? this.prediction?.sample() : null;
+      const self = predicted ? { ...s.players[this.player], pos: predicted.pos } : s.players[this.player];
       if (!playback && s.phase === 'active' && this.controls?.attackMovePending) {
         c.strokeStyle = COLORS[this.player] + 'b0';
         c.lineWidth = 2;
@@ -149,7 +158,8 @@ export class Renderer {
         const before = playback ? p.pos : (this.previous?.players[p.id].pos ?? p.pos);
         const after = playback?.next.players[p.id].pos ?? p.pos;
         const pos = distance(before, after) < 100 ? lerp(before, after, alpha) : p.pos;
-        this.playerBody(p, pos, now);
+        const local = p.id === this.player ? predicted : null;
+        this.playerBody(local ? { ...p, facing: local.facing } : p, local?.pos ?? pos, now);
       }
       for (const q of s.projectiles) {
         const travel =

@@ -167,6 +167,7 @@ function renderRoom(room: RoomState) {
     me = connection.player;
   showChampion(game.players[me].champion);
   renderer.player = me;
+  renderer.prediction = connection.prediction;
   renderer.update(game);
   const practice = room.mode === 'practice';
   $('#room-label').textContent = practice ? 'SOLO PRACTICE' : `ROOM ${room.code}`;
