@@ -34,7 +34,7 @@ Q/W/E cooldowns are divided by three. Passive, Mimic and Flash follow the game's
 - Tethers break on separation, death or target untargetability. Both normal and mimicked chains can coexist. Chain vision and true-sight rules are not modeled; the tether itself remains visible during stealth.
 - Mirror Image triggers on nonlethal damage while below its threshold. It interrupts enemy attack windups and targeted pursuit. Stealth prevents new basic-attack, targeted-spell and homing-spell acquisition, but existing missiles, skillshots, poison and area damage can still connect. Attacks and fresh champion spell casts reveal LeBlanc; Flash and return recasts preserve stealth.
 - The mirror is an automatic visual decoy moving away from the enemy. It has no damage, collision, health, targeting or manual-control system. It is translucent to its owner. This is a deliberate simplification of League's controllable, targetable clone, not a second combat unit. Opponent state is still included in snapshots, as elsewhere in this prototype; invisibility is not an anti-cheat information boundary.
-- Original geometric artwork uses a split violet cloak, pale face, gold crown and staff, plus team-color outlines. Normal magic uses muted violet; Mimic uses gold. No Riot art is bundled. Dash origins show shrinking return rings, sigils show diamonds and chains show the tether timer.
+- Original geometric artwork uses a split violet cloak, pale face, gold crown and staff, plus team-color outlines. Normal magic uses muted violet; Mimic uses gold. No Riot art is bundled. Both dash origins show shrinking return rings without text labels, sigils show diamonds and chains show the tether timer.
 
 ## Integration
 

@@ -91,7 +91,14 @@ Use the settings button to rebind keys, including for AZERTY keyboards. Click a 
 
 Spells pressed up to 250 ms before a cast lock, cooldown or recast lock ends are buffered and fire when legal. The latest waiting spell replaces the previous one; its aim is kept from the original input. Ready E and Flash remain immediate. S, movement and attack orders cancel waiting spells. An out-of-range R follows its target until casting range, spending its cooldown only when it casts; S or a new movement order cancels the approach. Flash can bring a pending R into range.
 
-After a kill, both players see the last three seconds at 0.75× speed and 1.22× zoom, with a Skip button. The result then compares match duration, shurikens hit/missed, accuracy, damage dealt and basic attacks hit. Shurikens are counted per projectile, including shadows; any thrown projectile that has not hit when the round ends counts as a miss. Damage is actual HP removed after defenses, excluding overkill. Stats and replay history reset each round.
+After a kill, both players see the last three seconds at 0.75× speed and 1.22× zoom, with a Skip button. The result compares duration, damage dealt and basic attacks hit, plus stats for the champions picked. Mirror matches share a comparison table; mixed matches show each champion's abilities separately:
+
+- **Zed:** shurikens hit/missed and accuracy, including shadow projectiles.
+- **Ahri:** outbound/return orb hits and pass accuracy, Charms hit/missed and accuracy, Fox-Fire hits, Spirit Rush bolt hits, and actual Essence Theft healing.
+- **Singed:** poison damage, time the enemy stayed poisoned, Flings landed, adhesive roots, and Insanity Potion uptime.
+- **LeBlanc:** sigils detonated, Distortion hits, chains hit/missed and accuracy, completed chain roots, Mimic casts hit, and returns used. Normal and mimicked abilities contribute to the same ability counters; each Mimic cast can count as a hit only once, and returns do not count as hits.
+
+Only launched projectiles count as attempts; those that have not hit when the round ends count as misses. Each Ahri orb has two possible hits. Damage is actual HP removed after defenses, excluding overkill; healing excludes overhealing and accounts for healing reduction. Overlapping poison clouds do not multiply poisoned time. Stats and replay history reset each round. Older hosts without the new counters show a dash for unavailable stats.
 
 ## Structure
 

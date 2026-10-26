@@ -113,6 +113,32 @@ export interface MatchStats {
   shurikensHit: number;
   attacksHit: number;
   damageDealt: number;
+  ahri?: {
+    orbsThrown: number;
+    orbOutHits: number;
+    orbReturnHits: number;
+    charmsThrown: number;
+    charmsHit: number;
+    fireHits: number;
+    rushHits: number;
+    healing: number;
+  };
+  singed?: {
+    poisonDamage: number;
+    poisonSeconds: number;
+    flingsHit: number;
+    adhesiveRoots: number;
+    potionSeconds: number;
+  };
+  leblanc?: {
+    sigilsDetonated: number;
+    distortionHits: number;
+    chainsThrown: number;
+    chainsHit: number;
+    chainRoots: number;
+    mimicHits: number;
+    returnsUsed: number;
+  };
 }
 export interface PlayerState {
   id: PlayerId;

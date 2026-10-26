@@ -34,7 +34,9 @@ export class AhriKit {
     if (kit.essenceHits < AHRI_PASSIVE.hits) return;
     kit.essenceHits = 0;
     const heal = AHRI_PASSIVE.heal * (p.grievousUntil > now ? 1 - SINGED_SPELLS.r.grievous : 1);
-    p.hp = Math.min(championStats(p.champion).hp, p.hp + heal);
+    const restored = Math.min(championStats(p.champion).hp - p.hp, heal);
+    p.hp += restored;
+    p.stats.ahri!.healing += restored;
     this.combat.healed(p);
   }
 
@@ -121,6 +123,8 @@ export class AhriKit {
     const velocity =
       distance(p.pos, point) > 0 ? direction(p.pos, point) : { x: Math.cos(p.facing), y: Math.sin(p.facing) };
     const id = ++this.serial;
+    if (kind === 'orb') p.stats.ahri!.orbsThrown++;
+    if (kind === 'charm') p.stats.ahri!.charmsThrown++;
     state.ahriMissiles.push({
       id,
       castId: castId ?? id,
@@ -181,6 +185,14 @@ export class AhriKit {
         segmentDistance(target.pos, m.pos, next) <= radius;
       if (hit) {
         m.hit = true;
+        const stats = owner.stats.ahri!;
+        if (m.kind === 'orb') {
+          if (m.returning) stats.orbReturnHits++;
+          else stats.orbOutHits++;
+        }
+        if (m.kind === 'charm') stats.charmsHit++;
+        if (m.kind === 'fire') stats.fireHits++;
+        if (m.kind === 'rush') stats.rushHits++;
         this.combat.damage(m.owner, target, m.damage, m.returning ? 'true' : 'magic');
         this.spellHit(owner, m.castId);
         if (m.kind === 'charm' && target.hp > 0) {

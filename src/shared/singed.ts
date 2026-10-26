@@ -41,7 +41,10 @@ export class SingedKit {
     );
     if (now >= flight.ends) {
       p.airborne = null;
-      if (this.grounded(p, flight.owner)) p.rootUntil = now + SPELLS.e.root;
+      if (p.hp > 0 && this.grounded(p, flight.owner)) {
+        p.rootUntil = now + SPELLS.e.root;
+        this.combat.state().players[flight.owner].stats.singed!.adhesiveRoots++;
+      }
     }
     return true;
   }
@@ -90,6 +93,7 @@ export class SingedKit {
         )
           return;
         p.cooldowns.e = state.time + SPELLS.e.cooldown;
+        p.stats.singed!.flingsHit++;
         this.combat.damage(
           p.id,
           enemy,
@@ -123,13 +127,15 @@ export class SingedKit {
     return true;
   }
 
-  update() {
+  update(dt: number) {
     const state = this.combat.state(),
       now = state.time;
     state.zones = state.zones.filter((z) => z.expires > now);
     for (const p of state.players) {
       const kit = p.singed;
       if (!kit || p.hp <= 0) continue;
+      // Count only the portion of this simulation step covered by the active buff.
+      p.stats.singed!.potionSeconds += Math.max(0, Math.min(now, kit.insanityUntil) - (now - dt));
       const enemy = state.players[1 - p.id];
       if (
         enemy.hp > 0 &&
@@ -156,6 +162,12 @@ export class SingedKit {
     }
     for (const target of state.players) {
       if (target.hp <= 0) continue;
+      const previousPoison = target.poison;
+      if (previousPoison)
+        state.players[previousPoison.owner].stats.singed!.poisonSeconds += Math.max(
+          0,
+          Math.min(now, previousPoison.until) - (now - dt),
+        );
       const cloud =
         target.untargetableUntil <= now &&
         state.zones.find(
@@ -177,7 +189,9 @@ export class SingedKit {
       if (poison.tickAt <= now) {
         const owner = state.players[poison.owner];
         const ap = potionBonus(owner, now);
+        const before = target.hp;
         this.combat.damage(poison.owner, target, SPELLS.q.damage + ap * SPELLS.q.ratio, 'magic');
+        owner.stats.singed!.poisonDamage += before - target.hp;
         poison.tickAt += SPELLS.q.interval;
         if (ap > 0) target.grievousUntil = now + SPELLS.r.grievousDuration;
       }

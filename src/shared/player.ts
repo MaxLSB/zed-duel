@@ -38,6 +38,35 @@ export class Player implements PlayerState {
     public champion: ChampionId = 'zed',
   ) {
     this.hp = championStats(champion).hp;
+    if (champion === 'ahri')
+      this.stats.ahri = {
+        orbsThrown: 0,
+        orbOutHits: 0,
+        orbReturnHits: 0,
+        charmsThrown: 0,
+        charmsHit: 0,
+        fireHits: 0,
+        rushHits: 0,
+        healing: 0,
+      };
+    if (champion === 'singed')
+      this.stats.singed = {
+        poisonDamage: 0,
+        poisonSeconds: 0,
+        flingsHit: 0,
+        adhesiveRoots: 0,
+        potionSeconds: 0,
+      };
+    if (champion === 'leblanc')
+      this.stats.leblanc = {
+        sigilsDetonated: 0,
+        distortionHits: 0,
+        chainsThrown: 0,
+        chainsHit: 0,
+        chainRoots: 0,
+        mimicHits: 0,
+        returnsUsed: 0,
+      };
     this.leblanc =
       champion === 'leblanc'
         ? { lastSpell: null, invisibleUntil: 0, clone: null, returns: { w: null, r: null }, dash: null }
