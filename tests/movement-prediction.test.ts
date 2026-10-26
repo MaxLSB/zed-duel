@@ -173,3 +173,18 @@ test('instant slash and Singed toggles preserve predicted movement without predi
     assert.equal(state.players[1].cooldowns[spell], 0);
   }
 });
+
+test('stationary confirmation finishes its correction even when fresh snapshots keep arriving', () => {
+  const { state, prediction } = setup();
+  prediction.input(1, move, 1000);
+  const stopped = structuredClone(state);
+  stopped.players[1].pos.x = 1880;
+  prediction.update(stopped, 1, 2, 200, 1120);
+  assert.ok(prediction.sample(1120)!.pos.x < 1870);
+  for (const now of [1152, 1184]) {
+    const next = structuredClone(stopped);
+    next.time += (now - 1120) / 1000;
+    prediction.update(next, 1, 2, 200, now);
+  }
+  close(prediction.sample(1201)!.pos.x, 1880);
+});

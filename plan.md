@@ -202,6 +202,8 @@ README.md        setup, controls, LAN/online instructions, known differences
 - Acknowledge inputs only after applying them. Increase browser-host snapshots from 20 to 30 Hz and match visual smoothing to snapshot cadence; preserve Node/LAN behavior.
 - Bound prediction during stalls, reset on rematches/disconnects, and verify movement/Stop under artificial latency before PR review.
 
-- [x] Pass type checks, 86 unit/session tests, 14 LAN scenarios, 10 Pages scenarios and production builds.
-- [x] Verify rendered movement, Stop, reconciliation and Flash with 100 ms added in each network direction. In the final local run, movement appeared after 23 ms versus 311 ms for the confirmed update; results vary with scheduling/network conditions.
+- [x] Pass type checks, 87 unit/session tests, 14 LAN scenarios, 10 Pages scenarios and production builds.
+- [x] Verify rendered movement, Stop, reconciliation and Flash with 100 ms added in each network direction. In the final local run, movement appeared after 20 ms versus 330 ms for the confirmed update; results vary with scheduling/network conditions.
 - [ ] Merge the responsiveness PR, reload both browsers and compare guest feel on separate connections. No relay redeployment is required.
+
+- [x] Preserve the correction deadline for repeated stationary snapshots; a regression test ensures a confirmed Stop settles within 80 ms.

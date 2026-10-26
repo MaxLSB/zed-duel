@@ -6,7 +6,7 @@ test('guest movement and Stop render before a 200 ms round trip, then reconcile 
 }) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
   const timers = new Set<ReturnType<typeof setTimeout>>();
-  const states: { at: number; x: number }[] = [];
+  const states: { at: number; x: number; stopped: boolean }[] = [];
   const errors: string[] = [];
   let open = true;
   const later = (run: () => void) => {
@@ -24,7 +24,11 @@ test('guest movement and Stop render before a 200 ms round trip, then reconcile 
         try {
           const m = JSON.parse(String(message));
           if (m.type === 'relay' && m.data.type === 'state')
-            states.push({ at: Date.now(), x: m.data.room.game.players[1].pos.x });
+            states.push({
+              at: Date.now(),
+              x: m.data.room.game.players[1].pos.x,
+              stopped: !m.data.room.game.players[1].destination,
+            });
         } catch {}
         socket.send(message);
       }),
@@ -75,13 +79,16 @@ test('guest movement and Stop render before a 200 ms round trip, then reconcile 
     await guest.waitForTimeout(90);
     console.info('Stop drift:', (await frames()).at(-1)!.x - beforeStop);
     expect(Math.abs((await frames()).at(-1)!.x - beforeStop)).toBeLessThan(15);
-    await guest.waitForTimeout(500);
-    expect(Math.abs((await frames()).at(-1)!.x - states.at(-1)!.x)).toBeLessThan(4);
+    await expect.poll(() => states.at(-1)!.stopped).toBe(true);
+    await expect
+      .poll(async () => Math.abs((await frames()).at(-1)!.x - states.at(-1)!.x), { timeout: 1000 })
+      .toBeLessThan(4);
     const beforeFlash = states.at(-1)!.x;
     await guest.keyboard.press('d');
     await expect.poll(() => states.at(-1)!.x).toBeLessThan(beforeFlash - 200);
-    await guest.waitForTimeout(150);
-    expect(Math.abs((await frames()).at(-1)!.x - states.at(-1)!.x)).toBeLessThan(4);
+    await expect
+      .poll(async () => Math.abs((await frames()).at(-1)!.x - states.at(-1)!.x), { timeout: 1000 })
+      .toBeLessThan(4);
     expect(errors).toEqual([]);
   } finally {
     open = false;

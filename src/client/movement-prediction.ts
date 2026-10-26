@@ -17,6 +17,7 @@ export class MovementPrediction {
   private player: PlayerId = 1;
   private received = 0;
   private delay = 0;
+  private correctionDuration = CORRECTION_MS;
   private pending: Command[] = [];
   private correction: Vec = { x: 0, y: 0 };
 
@@ -34,6 +35,7 @@ export class MovementPrediction {
 
   update(state: GameState, player: PlayerId, ack: number, latency: number, now = performance.now()) {
     const previous = this.sample(now);
+    const correctionLeft = Math.max(0, this.received + this.correctionDuration - now);
     const old = this.state;
     const motion = (s: GameState | null) =>
       s?.effects.filter((e) => e.owner === player && ['blink', 'vanish', 'emerge'].includes(e.kind)).at(-1)
@@ -49,6 +51,7 @@ export class MovementPrediction {
     this.state = state;
     this.player = player;
     this.received = now;
+    this.correctionDuration = CORRECTION_MS;
     this.delay = Number.isFinite(latency) ? Math.max(0, Math.min(latency, MAX_LEAD)) : 0;
     this.correction = { x: 0, y: 0 };
     const next = this.sample(now);
@@ -60,6 +63,12 @@ export class MovementPrediction {
       distance(previous.pos, next.pos) < 100 &&
       !this.locked(state.players[player])
     ) {
+      const stationary =
+        !state.players[player].destination &&
+        !old!.players[player].destination &&
+        this.pending.length === 0 &&
+        distance(state.players[player].pos, old!.players[player].pos) < 0.01;
+      if (stationary && correctionLeft > 0) this.correctionDuration = correctionLeft;
       this.correction = { x: previous.pos.x - next.pos.x, y: previous.pos.y - next.pos.y };
     }
   }
@@ -95,7 +104,7 @@ export class MovementPrediction {
       }
       advance(end);
     }
-    const weight = Math.max(0, 1 - (now - this.received) / CORRECTION_MS);
+    const weight = Math.max(0, 1 - (now - this.received) / this.correctionDuration);
     return {
       pos: bounded({ x: p.pos.x + this.correction.x * weight, y: p.pos.y + this.correction.y * weight }),
       facing: p.facing,
