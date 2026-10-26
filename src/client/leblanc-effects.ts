@@ -44,12 +44,6 @@ export class LeblancEffects {
           -Math.PI / 2 + Math.PI * 2 * Math.max(0, (pad.expires - now) / S.w.duration),
         );
         c.stroke();
-        if (key === 'r') {
-          c.fillStyle = '#cbb78b';
-          c.font = '18px monospace';
-          c.textAlign = 'center';
-          c.fillText('MIMIC', pad.pos.x, pad.pos.y + 7);
-        }
       }
     }
     for (const effect of state.effects) {

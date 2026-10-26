@@ -35,6 +35,7 @@ export class LeblancKit {
       kit = p.leblanc!;
     const pad = this.returnPoint(p, key);
     if (pad && (key === 'w' || key === 'r')) {
+      p.stats.leblanc!.returnsUsed++;
       this.combat.effect('blink', p.pos, p.id);
       p.pos = { ...pad.pos };
       kit.returns[key] = null;
@@ -96,6 +97,7 @@ export class LeblancKit {
           remaining: S[spell].range,
           expires: state.time + 3,
         });
+        if (spell === 'e') p.stats.leblanc!.chainsThrown++;
       });
     }
     return true;
@@ -115,8 +117,11 @@ export class LeblancKit {
         target.hp > 0 &&
         target.untargetableUntil <= now &&
         distance(p.pos, target.pos) <= S.w.radius + championStats(target.champion).radius
-      )
+      ) {
+        p.stats.leblanc!.distortionHits++;
+        if (dash.mimic) p.stats.leblanc!.mimicHits++;
         this.hit(p.id, target, dash.damage);
+      }
     }
     return true;
   }
@@ -126,7 +131,11 @@ export class LeblancKit {
     const marks = target.sigils.filter((m) => m.owner === owner && m.expires > now);
     target.sigils = target.sigils.filter((m) => m.owner !== owner && m.expires > now);
     this.combat.damage(owner, target, damage, 'magic');
-    for (const mark of marks) this.combat.damage(owner, target, mark.damage, 'magic');
+    for (const mark of marks) {
+      if (target.hp <= 0) break;
+      this.combat.state().players[owner].stats.leblanc!.sigilsDetonated++;
+      this.combat.damage(owner, target, mark.damage, 'magic');
+    }
   }
 
   damaged(p: PlayerState) {
@@ -181,6 +190,7 @@ export class LeblancKit {
       if (chain.triggers > now) return true;
       this.hit(owner.id, target, chain.mimic ? S.r.followup : S.e.rootDamage);
       if (target.hp > 0) {
+        owner.stats.leblanc!.chainRoots++;
         target.rootUntil = Math.max(target.rootUntil, now + S.e.root);
         // Roots interrupt displacement, but do not silence attacks or spells.
         if (target.ahri) target.ahri.dash = null;
@@ -212,6 +222,8 @@ export class LeblancKit {
     m.pos = next;
     m.remaining -= travel;
     if (hit) {
+      if (!homing) owner.stats.leblanc!.chainsHit++;
+      if (m.mimic) owner.stats.leblanc!.mimicHits++;
       this.hit(owner.id, target, m.mimic ? S.r.damage : homing ? S.q.damage : S.e.damage);
       if (target.hp > 0) {
         if (homing)

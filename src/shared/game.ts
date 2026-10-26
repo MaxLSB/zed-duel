@@ -178,7 +178,7 @@ export class Game {
     const due = this.scheduled.filter((event) => event.at <= s.time);
     this.scheduled = this.scheduled.filter((event) => event.at > s.time);
     due.sort((a, b) => a.at - b.at).forEach((event) => event.run());
-    this.singed.update();
+    this.singed.update(dt);
     this.ahri.update(dt);
     this.leblanc.update(dt);
     this.updateProjectiles(dt);
