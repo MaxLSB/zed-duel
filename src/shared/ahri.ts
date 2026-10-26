@@ -1,5 +1,6 @@
 import { AHRI_PASSIVE, AHRI_SPELLS as S } from './ahri-balance';
 import { SINGED_SPELLS } from './singed-balance';
+import { visible } from './visibility';
 import { championStats } from './champions';
 import { bounded, direction, distance, lerp, segmentDistance, towards } from './geometry';
 import type { SpellKey } from './balance';
@@ -97,7 +98,12 @@ export class AhriKit {
     if (now >= dash.ends) {
       p.ahri!.dash = null;
       const enemy = state.players[1 - p.id];
-      if (enemy.hp > 0 && enemy.untargetableUntil <= now && distance(p.pos, enemy.pos) <= S.r.boltRange)
+      if (
+        enemy.hp > 0 &&
+        enemy.untargetableUntil <= now &&
+        visible(enemy, now) &&
+        distance(p.pos, enemy.pos) <= S.r.boltRange
+      )
         this.missile(p, 'rush', enemy.pos, S.r.damage);
     }
     return true;
@@ -145,6 +151,7 @@ export class AhriKit {
         kit.fireAt <= now &&
         enemy.hp > 0 &&
         enemy.untargetableUntil <= now &&
+        visible(enemy, now) &&
         distance(p.pos, enemy.pos) <= S.w.range
       ) {
         this.missile(p, 'fire', enemy.pos, S.w.damage * (kit.fireHits ? S.w.repeat : 1), 0, kit.fireCastId);

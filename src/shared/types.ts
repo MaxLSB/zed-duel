@@ -5,7 +5,38 @@ export interface Vec {
   y: number;
 }
 export type PlayerId = 0 | 1;
-export type ChampionId = 'zed' | 'singed' | 'ahri';
+export type ChampionId = 'zed' | 'singed' | 'ahri' | 'leblanc';
+export interface LeblancState {
+  lastSpell: 'q' | 'w' | 'e' | null;
+  invisibleUntil: number;
+  clone: { pos: Vec; destination: Vec; facing: number; appears: number; expires: number } | null;
+  returns: Record<'w' | 'r', { id: number; pos: Vec; readyAt: number; expires: number } | null>;
+  dash: { from: Vec; to: Vec; started: number; ends: number; damage: number; mimic: boolean } | null;
+}
+export interface LeblancMissile {
+  id: number;
+  owner: PlayerId;
+  kind: 'sigil' | 'chain';
+  mimic: boolean;
+  pos: Vec;
+  velocity: Vec;
+  remaining: number;
+  expires: number;
+}
+export interface Sigil {
+  owner: PlayerId;
+  mimic: boolean;
+  expires: number;
+  damage: number;
+}
+export interface Chain {
+  id: number;
+  owner: PlayerId;
+  target: PlayerId;
+  mimic: boolean;
+  started: number;
+  triggers: number;
+}
 export interface AhriState {
   essenceHits: number;
   fireCastId: number;
@@ -88,6 +119,8 @@ export interface PlayerState {
   champion: ChampionId;
   singed: SingedState | null;
   ahri: AhriState | null;
+  leblanc: LeblancState | null;
+  sigils: Sigil[];
   charm: { owner: PlayerId; until: number } | null;
   poison: { owner: PlayerId; until: number; tickAt: number } | null;
   grievousUntil: number;
@@ -123,7 +156,7 @@ export interface Projectile {
 }
 export interface Effect {
   id: number;
-  kind: 'slash' | 'blink' | 'hit' | 'passive' | 'attack' | 'vanish' | 'emerge' | 'detonate';
+  kind: 'slash' | 'blink' | 'hit' | 'passive' | 'attack' | 'vanish' | 'emerge' | 'detonate' | 'distortion';
   pos: Vec;
   owner: PlayerId;
   at: number;
@@ -138,6 +171,8 @@ export interface GameState {
   players: [PlayerState, PlayerState];
   projectiles: Projectile[];
   ahriMissiles: AhriMissile[];
+  leblancMissiles: LeblancMissile[];
+  chains: Chain[];
   zones: GroundZone[];
   effects: Effect[];
   winner: PlayerId | 'draw' | null;

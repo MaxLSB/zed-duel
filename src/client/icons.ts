@@ -1,4 +1,10 @@
 export const icons: Record<string, string> = {
+  'leblanc-passive': '<path d="m8 3 5 6-2 5 3 7H2l3-7-2-5zM16 3l5 6-2 5 3 7h-6"/>',
+  'leblanc-q': '<path d="m12 2 7 10-7 10-7-10z"/><circle cx="12" cy="12" r="3"/><path d="M1 12h3m16 0h3"/>',
+  'leblanc-w': '<ellipse cx="7" cy="18" rx="5" ry="3"/><path d="M5 13V9a6 6 0 0 1 12 0v3m-4-4 4 4 4-4"/>',
+  'leblanc-e':
+    '<path d="m9 15 6-6M7 17l-2 2a3 3 0 0 1-4-4l5-5a3 3 0 0 1 4 0m4 4a3 3 0 0 0 4 0l5-5a3 3 0 0 0-4-4l-2 2"/>',
+  'leblanc-r': '<path d="m8 3 5 9-5 9-5-9zm8 0 5 9-5 9m-4-9h9"/>',
   'ahri-passive': '<path d="M12 3C4 9 4 13 12 21c8-8 8-12 0-18Z"/><path d="M8 12h8m-4-4v8"/>',
   'ahri-q':
     '<circle cx="12" cy="12" r="5"/><path d="M3 9a9 9 0 0 1 16-3m2 9a9 9 0 0 1-16 3M19 2v4h-4M5 22v-4h4"/>',

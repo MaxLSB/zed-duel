@@ -31,9 +31,13 @@ export abstract class GameConnection extends EventTarget {
       if (
         !Array.isArray(game.zones) ||
         !Array.isArray(game.ahriMissiles) ||
+        !Array.isArray(game.leblancMissiles) ||
+        !Array.isArray(game.chains) ||
         !game.players.every(
           (p) =>
             isChampion(p.champion) &&
+            Array.isArray(p.sigils) &&
+            (p.champion !== 'leblanc' || (!!p.leblanc && !!p.leblanc.returns)) &&
             (p.champion !== 'ahri' ||
               (!!p.ahri &&
                 Number.isInteger(p.ahri.essenceHits) &&

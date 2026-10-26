@@ -3,6 +3,8 @@ import { updateOverlay } from './overlay';
 import { ChampionSelection } from './champion-selection';
 import { CHAMPIONS, championName, championStats, championSpells } from '../shared/champions';
 import { isChampion } from '../shared/protocol';
+import { leblancDescriptions } from './leblanc-abilities';
+import { LEBLANC_PASSIVE, LEBLANC_SPELLS } from '../shared/leblanc-balance';
 import { ahriDescriptions } from './ahri-abilities';
 import { AHRI_PASSIVE } from '../shared/ahri-balance';
 import { singedDescriptions } from './singed-abilities';
@@ -106,11 +108,13 @@ function showChampion(champion: ChampionId) {
   for (const key of ['passive', ...SPELL_KEYS] as const) {
     const name =
       key === 'passive'
-        ? champion === 'ahri'
-          ? AHRI_PASSIVE.name
-          : champion === 'singed'
-            ? SINGED_PASSIVE.name
-            : 'Contempt for the Weak'
+        ? champion === 'leblanc'
+          ? LEBLANC_PASSIVE.name
+          : champion === 'ahri'
+            ? AHRI_PASSIVE.name
+            : champion === 'singed'
+              ? SINGED_PASSIVE.name
+              : 'Contempt for the Weak'
         : spells[key].name;
     const slot = $(`[data-spell="${key}"]`);
     slot.setAttribute('aria-label', name);
@@ -118,14 +122,16 @@ function showChampion(champion: ChampionId) {
       champion !== 'zed' && key !== 'd' ? `${champion}-${key}` : key,
     );
     $(`#tip-${key}`).innerHTML =
-      `<strong>${name}</strong>${{ zed: descriptions, singed: singedDescriptions, ahri: ahriDescriptions }[champion][key]}`;
+      `<strong>${name}</strong>${{ zed: descriptions, singed: singedDescriptions, ahri: ahriDescriptions, leblanc: leblancDescriptions }[champion][key]}`;
   }
   $('#cast-help').textContent =
-    champion === 'ahri'
-      ? 'Aim Orb of Deception, Charm, Spirit Rush and Flash with your cursor. Fox-Fire seeks nearby enemies. Recast Spirit Rush for up to three dashes.'
-      : champion === 'singed'
-        ? 'Toggle Poison Trail while moving. Aim Mega Adhesive and Flash with your cursor. Hover your opponent for Fling. Insanity Potion buffs you immediately.'
-        : 'Aim Shuriken, Living Shadow and Flash with your cursor. Hover your opponent for Death Mark.';
+    champion === 'leblanc'
+      ? 'Hover your opponent for Sigil of Malice. Aim Distortion and Chains with your cursor. Recast Distortion to return. Mimic repeats your last basic spell and has a separate return.'
+      : champion === 'ahri'
+        ? 'Aim Orb of Deception, Charm, Spirit Rush and Flash with your cursor. Fox-Fire seeks nearby enemies. Recast Spirit Rush for up to three dashes.'
+        : champion === 'singed'
+          ? 'Toggle Poison Trail while moving. Aim Mega Adhesive and Flash with your cursor. Hover your opponent for Fling. Insanity Potion buffs you immediately.'
+          : 'Aim Shuriken, Living Shadow and Flash with your cursor. Hover your opponent for Death Mark.';
 }
 $('#overlay').addEventListener('change', (event) => {
   const select = event.target;
@@ -239,33 +245,50 @@ function renderHUD(game: GameState, room: RoomState) {
         ? 'DEFEATED'
         : p.ultimate
           ? 'UNTARGETABLE'
-          : p.mark
-            ? 'DEATH MARK'
-            : game.phase === 'waiting'
-              ? ready[p.id]
-                ? 'READY'
-                : connected[p.id]
-                  ? 'NOT READY'
-                  : 'WAITING'
-              : p.airborne
-                ? 'AIRBORNE'
-                : p.charm && p.charm.until > game.time
-                  ? 'CHARMED'
-                  : p.ahri?.dash
-                    ? 'SPIRIT RUSH'
-                    : p.rootUntil > game.time
-                      ? 'ROOTED'
-                      : p.poison
-                        ? 'POISONED'
-                        : p.singed && p.singed.insanityUntil > game.time
-                          ? 'INSANITY POTION'
-                          : '';
+          : p.leblanc && p.leblanc.invisibleUntil > game.time
+            ? 'HIDDEN'
+            : p.leblanc?.dash
+              ? 'DISTORTION'
+              : p.sigils.length
+                ? 'SIGIL OF MALICE'
+                : p.mark
+                  ? 'DEATH MARK'
+                  : game.phase === 'waiting'
+                    ? ready[p.id]
+                      ? 'READY'
+                      : connected[p.id]
+                        ? 'NOT READY'
+                        : 'WAITING'
+                    : p.airborne
+                      ? 'AIRBORNE'
+                      : p.charm && p.charm.until > game.time
+                        ? 'CHARMED'
+                        : p.ahri?.dash
+                          ? 'SPIRIT RUSH'
+                          : p.rootUntil > game.time
+                            ? 'ROOTED'
+                            : p.poison
+                              ? 'POISONED'
+                              : p.singed && p.singed.insanityUntil > game.time
+                                ? 'INSANITY POTION'
+                                : '';
   }
   $('#clock').textContent = duration(game.time);
   const p = game.players[me];
   for (const key of ['passive', ...SPELL_KEYS] as const) {
     const slot = $<HTMLButtonElement>(`[data-spell="${key}"]`);
     const rush = key === 'r' && p.ahri && p.ahri.rushUntil > game.time && p.ahri.rushCharges > 0;
+    const pad = key === 'w' || key === 'r' ? p.leblanc?.returns[key] : null;
+    const returning = pad && pad.expires > game.time;
+    const mimic = key === 'r' && p.leblanc;
+    if (mimic) {
+      const name = returning
+        ? 'Mimic · Return'
+        : p.leblanc!.lastSpell
+          ? `Mimic · ${LEBLANC_SPELLS[p.leblanc!.lastSpell].name}`
+          : 'Mimic · Cast a basic spell first';
+      $('#tip-r strong').textContent = name;
+    }
     const remaining = Math.max(
       0,
       (rush ? p.ahri!.rushAt : key === 'passive' ? p.passiveAt : p.cooldowns[key]) - game.time,
@@ -289,22 +312,31 @@ function renderHUD(game: GameState, room: RoomState) {
     slot.querySelector('.cooldown')!.textContent =
       key === 'passive' && p.ahri
         ? `${p.ahri.essenceHits ?? 0}/${AHRI_PASSIVE.hits}`
-        : rush
-          ? `${p.ahri!.rushCharges} · ${Math.ceil(p.ahri!.rushUntil - game.time)}s`
-          : active
-            ? key === 'r' || key === 'q'
-              ? ''
-              : 'ON'
-            : shadow
-              ? '↔'
-              : remaining > 0
-                ? remaining >= 10
-                  ? `${Math.ceil(remaining)}`
-                  : remaining.toFixed(1)
-                : '';
-    slot.classList.toggle('on-cooldown', remaining > 0 && !shadow && !active);
-    slot.classList.toggle('recast', !!shadow || !!rush);
-    slot.classList.toggle('charge-window', !!rush);
+        : returning
+          ? `↔ ${Math.ceil(pad.expires - game.time)}s`
+          : mimic && !p.leblanc!.lastSpell
+            ? '—'
+            : rush
+              ? `${p.ahri!.rushCharges} · ${Math.ceil(p.ahri!.rushUntil - game.time)}s`
+              : active
+                ? key === 'r' || key === 'q'
+                  ? ''
+                  : 'ON'
+                : shadow
+                  ? '↔'
+                  : remaining > 0
+                    ? remaining >= 10
+                      ? `${Math.ceil(remaining)}`
+                      : remaining.toFixed(1)
+                    : mimic && p.leblanc!.lastSpell
+                      ? p.leblanc!.lastSpell.toUpperCase()
+                      : '';
+    slot.classList.toggle(
+      'on-cooldown',
+      (remaining > 0 || (!!mimic && !p.leblanc!.lastSpell)) && !shadow && !active && !returning,
+    );
+    slot.classList.toggle('recast', !!shadow || !!rush || !!returning);
+    slot.classList.toggle('charge-window', !!rush || !!returning);
     slot.classList.toggle('passive-counter', key === 'passive' && !!p.ahri);
   }
 }

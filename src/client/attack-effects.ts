@@ -1,3 +1,4 @@
+import { visible } from '../shared/visibility';
 import { championStats } from '../shared/champions';
 import { clamp, direction, lerp } from '../shared/geometry';
 import type { Effect, PlayerState, Vec } from '../shared/types';
@@ -10,6 +11,7 @@ export function attackWindup(p: PlayerState, now: number): number | null {
     p.airborne ||
     p.ultimate ||
     p.ahri?.dash ||
+    p.leblanc?.dash ||
     (p.charm && p.charm.until > now) ||
     p.castUntil > now ||
     p.windupUntil <= now
@@ -29,6 +31,7 @@ export class AttackEffects {
       p.airborne ||
       p.ultimate ||
       p.ahri?.dash ||
+      p.leblanc?.dash ||
       (p.charm && p.charm.until > now) ||
       p.castUntil > now
     )
@@ -55,7 +58,13 @@ export class AttackEffects {
 
   windup(p: PlayerState, from: Vec, target: PlayerState, to: Vec, now: number, color: string) {
     const progress = attackWindup(p, now);
-    if (progress === null || p.champion !== 'ahri' || target.hp <= 0 || target.untargetableUntil > now)
+    if (
+      progress === null ||
+      (p.champion !== 'ahri' && p.champion !== 'leblanc') ||
+      target.hp <= 0 ||
+      target.untargetableUntil > now ||
+      !visible(target, now)
+    )
       return;
     const aim = direction(from, to);
     const hand = { x: from.x + aim.x * 17 - aim.y * 46, y: from.y + aim.y * 17 + aim.x * 46 };

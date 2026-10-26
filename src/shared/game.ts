@@ -2,6 +2,9 @@ import { championStats, potionBonus } from './champions';
 import { SINGED_SPELLS } from './singed-balance';
 import { SingedKit } from './singed';
 import { AhriKit } from './ahri';
+import { LeblancKit } from './leblanc';
+import { LEBLANC_SPELLS } from './leblanc-balance';
+import { visible } from './visibility';
 import { PASSIVE, SPELLS, STATS, STEP } from './balance';
 import { bounded, direction, distance, segmentDistance, towards } from './geometry';
 import { movePlayer } from './movement';
@@ -27,7 +30,7 @@ export class Game {
   private groups = new Map<number, CastGroup>();
   private serial = 0;
   private spellBuffer = new SpellBuffer();
-  private approachTargets = new Map<PlayerId, PlayerId>();
+  private approachTargets = new Map<PlayerId, SpellKey>();
 
   private interrupt = (p: PlayerState) => {
     this.spellBuffer.clear(p.id);
@@ -38,7 +41,22 @@ export class Game {
     p.windupUntil = 0;
     p.castUntil = this.state.time;
     if (p.ahri) p.ahri.dash = null;
+    if (p.leblanc) p.leblanc.dash = null;
   };
+
+  private leblanc = new LeblancKit({
+    state: () => this.state,
+    schedule: (delay, run) => this.schedule(delay, run),
+    damage: (owner, target, raw, type) => this.damage(owner, target, raw, type),
+    effect: (kind, pos, owner) => this.effect(kind, pos, owner),
+    hidden: (p) => {
+      const enemy = this.enemy(p);
+      if (enemy.attacking) enemy.destination = null;
+      enemy.attacking = false;
+      enemy.windupUntil = 0;
+      this.cancelApproach(enemy);
+    },
+  });
 
   private ahri = new AhriKit({
     state: () => this.state,
@@ -81,6 +99,8 @@ export class Game {
       zones: [],
       projectiles: [],
       ahriMissiles: [],
+      leblancMissiles: [],
+      chains: [],
       effects: [],
       winner: null,
     };
@@ -88,6 +108,7 @@ export class Game {
 
   start(countdown = 3) {
     this.ahri.reset();
+    this.leblanc.reset();
     this.state = this.initialState();
     this.state.phase = countdown > 0 ? 'countdown' : 'active';
     this.state.countdown = countdown;
@@ -100,6 +121,7 @@ export class Game {
 
   disconnect() {
     this.ahri.reset();
+    this.leblanc.reset();
     this.state = this.initialState();
     this.scheduled = [];
     this.groups.clear();
@@ -135,6 +157,7 @@ export class Game {
       p.attacking = false;
     }
     if (input.action === 'attack') {
+      if (!visible(this.enemy(p), this.state.time)) return false;
       p.destination = null;
       p.attacking = true;
     }
@@ -157,6 +180,7 @@ export class Game {
     due.sort((a, b) => a.at - b.at).forEach((event) => event.run());
     this.singed.update();
     this.ahri.update(dt);
+    this.leblanc.update(dt);
     this.updateProjectiles(dt);
     for (const p of s.players) this.updateMark(p);
     s.effects = s.effects.filter((effect) => s.time - effect.at < 0.8);
@@ -206,22 +230,28 @@ export class Game {
       movePlayer(p, this.state, dt);
       return;
     }
-    if (this.ahri.moveDash(p)) return;
+    if (this.ahri.moveDash(p) || this.leblanc.moveDash(p)) return;
     if (!this.targetable(p) || p.castUntil > now) return;
     const enemy = this.enemy(p);
     if (this.approachTargets.has(p.id)) {
-      if (enemy.hp <= 0 || !this.targetable(enemy)) this.cancelApproach(p);
+      if (enemy.hp <= 0 || !this.targetable(enemy) || !visible(enemy, now)) this.cancelApproach(p);
       else if (distance(p.pos, enemy.pos) <= this.targetedRange(p, enemy)) {
-        this.cast(p, p.champion === 'singed' ? 'e' : 'r', enemy.pos, enemy.id);
+        this.cast(p, this.approachTargets.get(p.id)!, enemy.pos, enemy.id);
         return;
       } else p.destination = { ...enemy.pos };
     }
     const attackRange = stats.attackRange + stats.radius + championStats(enemy.champion).radius;
-    if (p.attackMove && enemy.hp > 0 && this.targetable(enemy) && distance(p.pos, enemy.pos) <= attackRange) {
+    if (
+      p.attackMove &&
+      enemy.hp > 0 &&
+      this.targetable(enemy) &&
+      visible(enemy, now) &&
+      distance(p.pos, enemy.pos) <= attackRange
+    ) {
       p.attackMove = null;
       p.attacking = true;
     }
-    if (p.attacking && enemy.hp > 0 && this.targetable(enemy)) {
+    if (p.attacking && enemy.hp > 0 && this.targetable(enemy) && visible(enemy, now)) {
       p.destination = distance(p.pos, enemy.pos) > attackRange ? { ...enemy.pos } : null;
       if (!p.destination && p.attackAt <= now && p.windupUntil === 0) this.attack(p, enemy);
     }
@@ -238,7 +268,9 @@ export class Game {
       a.airborne ||
       b.airborne ||
       a.ahri?.dash ||
-      b.ahri?.dash
+      b.ahri?.dash ||
+      a.leblanc?.dash ||
+      b.leblanc?.dash
     )
       return;
     const d = distance(a.pos, b.pos);
@@ -252,6 +284,7 @@ export class Game {
   }
 
   private attack(p: PlayerState, enemy: PlayerState) {
+    if (p.leblanc) p.leblanc.invisibleUntil = 0;
     const stats = championStats(p.champion);
     const enemyStats = championStats(enemy.champion);
     const delay = stats.windup / stats.attackSpeed;
@@ -265,6 +298,7 @@ export class Game {
         p.airborne ||
         !this.targetable(p) ||
         !this.targetable(enemy) ||
+        !visible(enemy, this.state.time) ||
         distance(p.pos, enemy.pos) > stats.attackRange + stats.radius + enemyStats.radius + 25
       )
         return;
@@ -285,6 +319,7 @@ export class Game {
   }
 
   private targetedRange(p: PlayerState, enemy: PlayerState) {
+    if (p.leblanc) return LEBLANC_SPELLS.q.range + championStats(enemy.champion).radius;
     return p.champion === 'singed'
       ? SINGED_SPELLS.e.range + championStats(p.champion).radius + championStats(enemy.champion).radius
       : SPELLS.r.range + championStats(enemy.champion).radius;
@@ -309,9 +344,29 @@ export class Game {
     const displacement =
       key === 'd' ||
       (p.champion === 'ahri' && key === 'r') ||
+      (!!p.leblanc && (!!this.leblanc.returnPoint(p, key) || this.leblanc.spell(p, key) === 'w')) ||
       (p.champion === 'zed' && (key === 'r' || (key === 'w' && !!shadow)));
     if (displacement && (p.rootUntil > now || this.singed.grounded(p))) return null;
     if (p.airborne || (p.charm && p.charm.until > now)) return null;
+    if (p.leblanc) {
+      if (p.leblanc.dash) return null;
+      const pad = this.leblanc.returnPoint(p, key);
+      const spell = this.leblanc.spell(p, key);
+      const enemy = this.enemy(p);
+      if (
+        !pad &&
+        (!spell ||
+          (spell === 'q' &&
+            (target !== enemy.id || enemy.hp <= 0 || !this.targetable(enemy) || !visible(enemy, now))))
+      )
+        return null;
+      return Math.max(
+        now,
+        p.untargetableUntil,
+        pad ? pad.readyAt : p.cooldowns[key],
+        key === 'd' ? 0 : p.castUntil,
+      );
+    }
     if (p.ahri) {
       if (p.ahri.dash && key !== 'w') return null;
       const cooldown =
@@ -320,7 +375,14 @@ export class Game {
     }
     if (p.champion === 'singed') {
       const enemy = this.enemy(p);
-      if (key === 'e' && (target !== enemy.id || !this.targetable(enemy) || enemy.hp <= 0 || enemy.airborne))
+      if (
+        key === 'e' &&
+        (target !== enemy.id ||
+          !this.targetable(enemy) ||
+          !visible(enemy, now) ||
+          enemy.hp <= 0 ||
+          enemy.airborne)
+      )
         return null;
       return Math.max(
         now,
@@ -334,7 +396,11 @@ export class Game {
       return Math.max(now, p.untargetableUntil, shadow.swapAfter, shadow.readyAt);
     }
     const enemy = this.enemy(p);
-    if (key === 'r' && (target !== enemy.id || !this.targetable(enemy) || enemy.hp <= 0)) return null;
+    if (
+      key === 'r' &&
+      (target !== enemy.id || !this.targetable(enemy) || !visible(enemy, now) || enemy.hp <= 0)
+    )
+      return null;
     return Math.max(now, p.untargetableUntil, p.cooldowns[key], key === 'e' || key === 'd' ? 0 : p.castUntil);
   }
 
@@ -347,7 +413,12 @@ export class Game {
       if (this.spellBuffer.get(p.id, now)?.input.spell === input.spell) this.spellBuffer.clear(p.id);
       return this.cast(p, input.spell, input.point, input.target);
     }
-    this.spellBuffer.queue(p.id, input, this.recastShadow(p, input.spell)?.id ?? null, now);
+    this.spellBuffer.queue(
+      p.id,
+      input,
+      this.recastShadow(p, input.spell)?.id ?? this.leblanc.returnPoint(p, input.spell)?.id ?? null,
+      now,
+    );
     return true;
   }
 
@@ -355,7 +426,10 @@ export class Game {
     for (const p of this.state.players) {
       const queued = this.spellBuffer.get(p.id, this.state.time);
       if (!queued) continue;
-      const shadowId = this.recastShadow(p, queued.input.spell)?.id ?? null;
+      const shadowId =
+        this.recastShadow(p, queued.input.spell)?.id ??
+        this.leblanc.returnPoint(p, queued.input.spell)?.id ??
+        null;
       const readyAt = this.castReadyAt(p, queued.input);
       if (p.hp <= 0 || readyAt === null || shadowId !== queued.shadowId) {
         this.spellBuffer.clear(p.id);
@@ -385,9 +459,12 @@ export class Game {
     }
     const spell = SPELLS[key];
     const enemy = this.enemy(p);
-    const targeted = (p.champion === 'singed' && key === 'e') || (p.champion === 'zed' && key === 'r');
+    const targeted =
+      (p.champion === 'singed' && key === 'e') ||
+      (p.champion === 'zed' && key === 'r') ||
+      (!!p.leblanc && !this.leblanc.returnPoint(p, key) && this.leblanc.spell(p, key) === 'q');
     if (targeted && distance(p.pos, enemy.pos) > this.targetedRange(p, enemy)) {
-      this.approachTargets.set(p.id, enemy.id);
+      this.approachTargets.set(p.id, key);
       p.destination = { ...enemy.pos };
       p.attacking = false;
       p.attackMove = null;
@@ -395,6 +472,8 @@ export class Game {
       return true;
     }
     if (targeted) this.cancelApproach(p);
+    if (p.leblanc && key !== 'd' && !this.leblanc.returnPoint(p, key)) p.leblanc.invisibleUntil = 0;
+    if (p.leblanc && key !== 'd') return this.leblanc.cast(p, key, point);
     if (p.champion === 'singed' && key !== 'd') return this.singed.cast(p, key, point);
     if (p.champion === 'ahri' && key !== 'd') return this.ahri.cast(p, key, point);
     p.cooldowns[key] = now + spell.cooldown;
@@ -597,5 +676,6 @@ export class Game {
     this.state.players[owner].stats.damageDealt += Math.min(target.hp, amount);
     target.hp = Math.max(0, target.hp - amount);
     this.effect('hit', target.pos, owner, amount);
+    this.leblanc.damaged(target);
   }
 }

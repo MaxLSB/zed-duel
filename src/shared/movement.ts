@@ -25,6 +25,7 @@ export function movePlayer(p: PlayerState, state: GameState, dt: number) {
     p.airborne ||
     p.ultimate ||
     p.ahri?.dash ||
+    p.leblanc?.dash ||
     p.untargetableUntil > now ||
     p.castUntil > now ||
     p.windupUntil > now ||
