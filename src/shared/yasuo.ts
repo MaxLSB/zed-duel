@@ -46,7 +46,8 @@ export class YasuoKit {
       now = state.time,
       kit = p.yasuo!;
     const enemy = state.players[1 - p.id];
-    p.cooldowns[key] = now + S[key].cooldown;
+    const cooldownStart = key === 'q' && kit.dash ? Math.max(now, p.cooldowns.q) : now;
+    p.cooldowns[key] = cooldownStart + S[key].cooldown;
     p.windupUntil = 0;
     const aim = distance(p.pos, point)
       ? direction(p.pos, point)
@@ -115,6 +116,7 @@ export class YasuoKit {
       p.attacking = false;
     }
     if (key === 'r') {
+      const slash = kit.dash?.slash;
       this.combat.interrupt(p);
       this.combat.interrupt(enemy);
       kit.flow = P.maxFlow;
@@ -124,6 +126,9 @@ export class YasuoKit {
       this.combat.effect('blink', p.pos, p.id);
       p.pos = bounded({ x: enemy.pos.x + v.x * 130, y: enemy.pos.y + v.y * 130 });
       p.facing = Math.atan2(enemy.pos.y - p.pos.y, enemy.pos.x - p.pos.x);
+      // Airblade carries the accepted E-Q to R's destination, after R clears old stacks.
+      // The cancelled E must not sweep the blink path or repeat its contact damage.
+      if (slash) this.dashSlash(p, slash);
       const stamp = now + S.r.duration;
       kit.ultimateUntil = stamp;
       p.castUntil = stamp;
@@ -212,6 +217,10 @@ export class YasuoKit {
     if (!kit || !dash) return;
     kit.dash = null;
     if (!dash.slash) return;
+    this.dashSlash(p, dash.slash);
+  }
+
+  private dashSlash(p: PlayerState, slash: 'normal' | 'tornado') {
     const state = this.combat.state(),
       enemy = state.players[1 - p.id];
     p.stats.yasuo!.tempestsCast++;
@@ -221,7 +230,7 @@ export class YasuoKit {
       enemy.untargetableUntil <= state.time &&
       distance(p.pos, enemy.pos) <= S.q.radius + championStats(enemy.champion).radius
     )
-      this.tempestHit(p, enemy, dash.slash === 'tornado');
+      this.tempestHit(p, enemy, slash === 'tornado');
   }
 
   update(dt: number) {

@@ -392,10 +392,12 @@ export class Game {
         return null;
       if (key === 'e' && kit.dashTargetUntil > now) return null;
       if (key === 'r' && (!enemy.airborne || enemy.airborne.ends <= now)) return null;
+      // E can borrow the final half-second of Q's cooldown; the next Q repays it.
+      const dashQ = key === 'q' && kit.dash && p.cooldowns.q - kit.dash.started <= YASUO_SPELLS.e.qBuffer;
       return Math.max(
         now,
         p.untargetableUntil,
-        p.cooldowns[key],
+        dashQ ? 0 : p.cooldowns[key],
         key === 'w' || key === 'd' ? 0 : p.castUntil,
       );
     }
