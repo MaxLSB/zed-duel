@@ -14,7 +14,8 @@
     "build:pages": "tsc --noEmit && vite build --mode pages --base=/zed-duel/",
     "test:pages": "playwright test --config playwright.pages.config.ts",
     "signal:dev": "wrangler dev --env test --port 3190",
-    "signal:deploy": "wrangler deploy --env=\"\""
+    "signal:deploy": "wrangler deploy --env=\"\"",
+    "signal:check": "node --import tsx scripts/check-relay.ts"
   },
   "dependencies": {
     "ws": "^8.18.0"

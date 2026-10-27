@@ -30,7 +30,15 @@ For a fresh installation:
 3. In **GitHub → zed-duel → Settings → Secrets and variables → Actions → Variables**, set **VITE_SIGNAL_URL** to the Worker’s HTTPS URL. This is a public URL, not a credential. Old TURN secrets and `VITE_PEER_SERVER_URL` / `VITE_ICE_SERVERS` variables are unused.
 4. Keep **Settings → Pages → Source** set to **GitHub Actions**. Merge the PR after validation. The workflow tests and publishes the frontend from `main`; it does not deploy the Worker. Future Worker changes also require `npm run signal:deploy`.
 
-The Pages publication job refuses a missing `VITE_SIGNAL_URL` so it cannot silently publish multiplayer without a configured relay. The Worker and Durable Object retain their existing names, URL and SQLite migration.
+Before publishing, the Pages job runs `npm run signal:check` against `VITE_SIGNAL_URL`. It creates a temporary room and verifies that every champion's guest join and selection messages reach the host through the deployed relay. A missing URL, unavailable service or outdated champion validator blocks publication with an error. Deploy the current Worker with `npm run signal:deploy`, then rerun the failed workflow. Local Worker tests and a successful `/health` response alone cannot detect an outdated production validator. The Worker and Durable Object retain their existing names, URL and SQLite migration.
+
+Run the same check manually after a relay deployment:
+
+```sh
+VITE_SIGNAL_URL=https://zed-duel-signal.zed-duel.workers.dev npm run signal:check
+```
+
+For another installation, set `SIGNAL_ORIGIN` to its configured frontend origin (default: `https://maxlsb.github.io`). The check closes both sockets afterward and the relay removes the temporary room.
 
 ## Free limits
 

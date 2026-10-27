@@ -30,9 +30,9 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
       - run: npm run test:pages
-      - name: Require the deployed room service before publishing
+      - name: Verify all guest champions against the deployed room service
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        run: node -e "if (!process.env.VITE_SIGNAL_URL) throw new Error('Set the VITE_SIGNAL_URL repository variable to the deployed Cloudflare Worker URL before publishing.')"
+        run: npm run signal:check
         env:
           VITE_SIGNAL_URL: ${{ vars.VITE_SIGNAL_URL }}
       - name: Build public Pages frontend
