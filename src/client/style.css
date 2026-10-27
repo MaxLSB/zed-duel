@@ -827,3 +827,25 @@ dialog p {
   color: #9ba69c;
   font-size: 10px;
 }
+
+/* Remaining Spirit Rush window travels around the spell box clockwise. */
+.rush-active {
+  border-color: #bad87935;
+  box-shadow: 0 0 15px #bad87922;
+}
+.rush-active::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(#c4e68a var(--rush-progress), transparent 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.rush-active .ability-icon {
+  opacity: 0.3;
+}

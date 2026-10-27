@@ -12,6 +12,7 @@ export function attackWindup(p: PlayerState, now: number): number | null {
     p.ultimate ||
     p.ahri?.dash ||
     p.leblanc?.dash ||
+    p.yasuo?.dash ||
     (p.charm && p.charm.until > now) ||
     p.castUntil > now ||
     p.windupUntil <= now
@@ -32,6 +33,7 @@ export class AttackEffects {
       p.ultimate ||
       p.ahri?.dash ||
       p.leblanc?.dash ||
+      p.yasuo?.dash ||
       (p.charm && p.charm.until > now) ||
       p.castUntil > now
     )
@@ -121,6 +123,11 @@ export class AttackEffects {
         c.quadraticCurveTo(-28, side * 12, -36 + progress * 16, -side * 25);
         c.stroke();
       }
+    } else if (owner.champion === 'yasuo') {
+      c.beginPath();
+      c.moveTo(-75, -45);
+      c.quadraticCurveTo(15 + progress * 35, 0, -45, 55);
+      c.stroke();
     } else if (owner.champion === 'singed') {
       c.beginPath();
       c.arc(-25, 0, 35 + progress * 8, Math.PI * 0.65, Math.PI * 1.35);

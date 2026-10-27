@@ -26,6 +26,7 @@ export class Player implements PlayerState {
   singed: PlayerState['singed'];
   ahri: PlayerState['ahri'];
   leblanc: PlayerState['leblanc'];
+  yasuo: PlayerState['yasuo'];
   sigils: PlayerState['sigils'] = [];
   charm: PlayerState['charm'] = null;
   poison: PlayerState['poison'] = null;
@@ -38,6 +39,31 @@ export class Player implements PlayerState {
     public champion: ChampionId = 'zed',
   ) {
     this.hp = championStats(champion).hp;
+    this.yasuo =
+      champion === 'yasuo'
+        ? {
+            flow: 0,
+            shield: 0,
+            shieldUntil: 0,
+            stacks: 0,
+            stacksUntil: 0,
+            dashTargetUntil: 0,
+            dashStacks: 0,
+            dashStacksUntil: 0,
+            ultimateUntil: 0,
+            dash: null,
+          }
+        : null;
+    if (champion === 'yasuo')
+      this.stats.yasuo = {
+        tempestsCast: 0,
+        tempestsHit: 0,
+        knockups: 0,
+        projectilesBlocked: 0,
+        dashesHit: 0,
+        ultimatesHit: 0,
+        shieldAbsorbed: 0,
+      };
     if (champion === 'ahri')
       this.stats.ahri = {
         orbsThrown: 0,

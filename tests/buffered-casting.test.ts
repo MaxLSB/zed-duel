@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { SPELL_BUFFER_WINDOW } from '../src/shared/spell-buffer';
 import { Game } from '../src/shared/game';
 import { SPELLS, STEP } from '../src/shared/balance';
 import type { SpellKey } from '../src/shared/balance';
@@ -66,9 +67,9 @@ test('only the latest waiting spell executes; early cooldown inputs never bypass
   assert.equal(cast(game, 'q'), false);
 });
 
-test('inputs more than 250 ms early are discarded instead of firing much later', () => {
+test('inputs more than 500 ms early are discarded instead of firing much later', () => {
   const game = duel();
-  game.state.players[0].cooldowns.q = 0.5;
+  game.state.players[0].cooldowns.q = SPELL_BUFFER_WINDOW + 0.1;
   assert.equal(cast(game, 'q'), false);
   advance(game, 1);
   assert.equal(game.state.players[0].stats.shurikensThrown, 0);
@@ -117,7 +118,7 @@ test('stale shadow swaps and extended lockouts expire without becoming new casts
   assert.equal(p.pos.x, 500);
   p.cooldowns.q = game.state.time + 0.15;
   cast(game, 'q');
-  p.castUntil = game.state.time + 0.5;
+  p.castUntil = game.state.time + SPELL_BUFFER_WINDOW + 0.25;
   advance(game, 0.8);
   assert.equal(p.stats.shurikensThrown, 0);
 });
@@ -204,4 +205,20 @@ test('R return buffered just before landing swaps on the landing tick', () => {
   assert.equal(p.pos.x, 500);
   assert.equal(game.state.players[1].mark?.owner, 0);
   assert.equal(p.cooldowns.r, SPELLS.r.cooldown);
+});
+
+test('casts pressed 400 ms early now buffer through cooldown and cast locks without firing early', () => {
+  for (const lock of ['cooldowns', 'castUntil'] as const) {
+    const game = duel(),
+      p = game.state.players[0];
+    if (lock === 'cooldowns') p.cooldowns.w = 0.4;
+    else p.castUntil = 0.4;
+    assert.equal(cast(game, 'w', { x: 800, y: 400 }), true);
+    advance(game, 0.35);
+    assert.equal(p.shadows.length, 0);
+    advance(game, 0.1);
+    assert.equal(p.shadows.length, 1);
+    assert.deepEqual(p.shadows[0].pos, { x: 800, y: 400 });
+    assert.ok(p.shadows[0].created >= 0.4 && p.shadows[0].created <= 0.4 + STEP);
+  }
 });

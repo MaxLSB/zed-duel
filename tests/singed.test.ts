@@ -295,9 +295,10 @@ test('Insanity Potion lasts 10 seconds, then requires a full 10-second cooldown 
   advance(game, 0.2);
   near(p.hp - hp, SINGED_STATS.hpRegen * 0.2);
   advance(game, 9.3);
-  assert.equal(cast(game, 'r'), false);
-  advance(game, 0.5);
-  assert.equal(cast(game, 'r'), true);
+  assert.equal(cast(game, 'r'), true); // Queued within the wider 500ms window.
+  advance(game, 0.3);
+  assert.equal(potionBonus(p, game.state.time), 0);
+  while (game.state.time < 20) game.step();
   near(p.singed!.insanityUntil, game.state.time + 10);
   near(p.cooldowns.r, game.state.time + 20);
   assert.equal(potionBonus(p, game.state.time), 85);

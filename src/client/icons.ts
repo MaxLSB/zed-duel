@@ -1,4 +1,9 @@
 export const icons: Record<string, string> = {
+  'yasuo-passive': '<path d="m12 2 8 4v6c0 5-8 10-8 10S4 17 4 12V6zM7 10h8a2 2 0 1 0-2-2m-5 6h7"/>',
+  'yasuo-q': '<path d="m4 20 4-4m-3-3 6 6M8 15 19 3l2-1-1 6-10 9M2 8h8m-5-4h8"/>',
+  'yasuo-w': '<path d="M4 21V5m8 16V3m8 18V5M1 9h22M1 15h22M2 4l2-2 2 2m4-2 2-1 2 1m4 2 2-2 2 2"/>',
+  'yasuo-e': '<path d="M2 17c10 0 9-12 20-12m-5-3 5 3-4 4M2 21c10 0 9-12 20-12M4 4l3 3-3 3"/>',
+  'yasuo-r': '<path d="m3 3 18 18M21 3 3 21m1-11 8-8 8 8M5 19l7 3 7-3"/>',
   'leblanc-passive': '<path d="m8 3 5 6-2 5 3 7H2l3-7-2-5zM16 3l5 6-2 5 3 7h-6"/>',
   'leblanc-q': '<path d="m12 2 7 10-7 10-7-10z"/><circle cx="12" cy="12" r="3"/><path d="M1 12h3m16 0h3"/>',
   'leblanc-w': '<ellipse cx="7" cy="18" rx="5" ry="3"/><path d="M5 13V9a6 6 0 0 1 12 0v3m-4-4 4 4 4-4"/>',

@@ -196,6 +196,7 @@ test('every matchup and perspective shows only the picked kits, including mirror
     ahri: 'Orb hits',
     singed: 'Poison damage',
     leblanc: 'Sigils detonated',
+    yasuo: 'Tempests hit',
   };
   for (const a of CHAMPIONS)
     for (const b of CHAMPIONS) {

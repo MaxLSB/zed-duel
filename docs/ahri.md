@@ -22,7 +22,7 @@ Data Dragon's `16.21.1` Ahri JSON could not be fetched in this environment. No R
 | R · Spirit Rush | Dash up to 500 units, then launch one 175 magic damage bolt at the opponent within 600 units; three casts, 1s apart, within 15s | 10s after the final cast or window expiry |
 | D · Flash | Shared 400-unit blink | 10s |
 
-Q/W/E follow the existing one-third cooldown convention. Mana and AP items are absent. R's cooldown starts after the sequence closes so the duel's 10s override cannot refill charges inside a 15s window. This deliberately differs from League's cooldown starting on activation.
+Q/W/E follow the existing one-third cooldown convention. Mana and AP items are absent. R's cooldown starts after the final dash finishes (or is interrupted), or after unused charges expire so the duel's 10s override cannot refill charges inside a 15s window. This deliberately differs from League's cooldown starting on activation.
 
 Essence Theft is a custom duel passive: every three spell casts that connect heal 60 HP. Q counts once across both passes; W counts once across its three flames; each R dash can count when its bolt hits. Misses, basic attacks and kills grant no separate credit. The counter resets when healing triggers, even at full HP, and resets between rounds. The HUD displays 0/3, 1/3 or 2/3. This replaces League's minion-stack and champion-kill healing. R's extra charge and duration on takedown have no further combat use because a kill ends the round, so they remain omitted.
 
@@ -55,3 +55,8 @@ npm test
 npm run test:browser
 npm run test:pages
 ```
+
+
+## Spirit Rush HUD
+
+While the sequence is active, R uses the same green highlight as Singed's Insanity Potion. Its number shows only unused dashes (2, then 1, briefly 0 during the final dash). A shrinking outline tracks the remaining 15-second recast window. Spending the last charge keeps the active state until the dash finishes; the slot then changes to its full 10-second cooldown. Window expiry also starts a fresh 10-second cooldown. Reset, champion changes and killcam use the authoritative snapshot state for this display.

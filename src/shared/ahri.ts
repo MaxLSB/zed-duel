@@ -6,6 +6,8 @@ import { bounded, direction, distance, lerp, segmentDistance, towards } from './
 import type { SpellKey } from './balance';
 import type { AhriMissile, GameState, PlayerId, PlayerState, Vec } from './types';
 
+import { blockedByWindWall } from './wind-wall';
+
 interface Combat {
   state: () => GameState;
   schedule: (delay: number, run: () => void) => void;
@@ -72,9 +74,6 @@ export class AhriKit {
       }
       kit.rushCharges--;
       kit.rushAt = now + S.r.recast;
-      // The duel cooldown begins when the final charge is used or the window expires.
-      p.cooldowns.r = (kit.rushCharges ? kit.rushUntil : now) + S.r.cooldown;
-      if (!kit.rushCharges) kit.rushUntil = 0;
       const to = bounded(towards(p.pos, point, S.r.range));
       kit.dash = {
         from: { ...p.pos },
@@ -82,6 +81,9 @@ export class AhriKit {
         started: now,
         ends: now + Math.max(1 / 60, distance(p.pos, to) / S.r.speed),
       };
+      // Keep the final dash active until it lands, then begin the full cooldown.
+      if (!kit.rushCharges) kit.rushUntil = kit.dash.ends;
+      p.cooldowns.r = Math.max(kit.rushUntil, kit.dash.ends) + S.r.cooldown;
       p.facing = Math.atan2(to.y - p.pos.y, to.x - p.pos.x);
       p.destination = null;
       p.attackMove = null;
@@ -147,6 +149,11 @@ export class AhriKit {
     for (const p of state.players) {
       const kit = p.ahri;
       if (!kit) continue;
+      if (kit.rushUntil > 0 && !kit.dash && !kit.rushCharges) {
+        // An interrupted final dash finishes the active window immediately.
+        p.cooldowns.r = Math.min(p.cooldowns.r, now + S.r.cooldown);
+        kit.rushUntil = 0;
+      }
       if (kit.rushUntil <= now) kit.rushCharges = 0;
       if (p.hp <= 0 || kit.fireUntil <= now) kit.fires = 0;
       const enemy = state.players[1 - p.id];
@@ -175,6 +182,16 @@ export class AhriKit {
       const speed = m.kind === 'rush' ? S.r.boltSpeed : m.kind === 'fire' ? S.w.speed : S.q.speed;
       const travel = Math.min(speed * dt, destination ? distance(m.pos, destination) : m.remaining);
       const next = { x: m.pos.x + m.velocity.x * travel, y: m.pos.y + m.velocity.y * travel };
+      if (
+        blockedByWindWall(
+          state,
+          m.owner,
+          m.pos,
+          next,
+          m.kind === 'orb' ? S.q.width / 2 : m.kind === 'charm' ? S.e.width / 2 : 15,
+        )
+      )
+        return false;
       const radius =
         championStats(target.champion).radius +
         (m.kind === 'orb' ? S.q.width / 2 : m.kind === 'charm' ? S.e.width / 2 : 15);

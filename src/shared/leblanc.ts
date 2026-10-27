@@ -5,6 +5,8 @@ import { visible } from './visibility';
 import type { SpellKey } from './balance';
 import type { Effect, GameState, LeblancMissile, PlayerId, PlayerState, Vec } from './types';
 
+import { blockedByWindWall } from './wind-wall';
+
 interface Combat {
   state: () => GameState;
   schedule: (delay: number, run: () => void) => void;
@@ -195,6 +197,7 @@ export class LeblancKit {
         // Roots interrupt displacement, but do not silence attacks or spells.
         if (target.ahri) target.ahri.dash = null;
         if (target.leblanc) target.leblanc.dash = null;
+        if (target.yasuo) target.yasuo.dash = null;
       }
       return false;
     });
@@ -215,6 +218,7 @@ export class LeblancKit {
       homing ? distance(m.pos, target.pos) : m.remaining,
     );
     const next = { x: m.pos.x + m.velocity.x * travel, y: m.pos.y + m.velocity.y * travel };
+    if (blockedByWindWall(state, m.owner, m.pos, next, homing ? 12 : S.e.width / 2)) return false;
     const hit =
       target.untargetableUntil <= now &&
       segmentDistance(target.pos, m.pos, next) <=

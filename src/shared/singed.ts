@@ -41,7 +41,7 @@ export class SingedKit {
     );
     if (now >= flight.ends) {
       p.airborne = null;
-      if (p.hp > 0 && this.grounded(p, flight.owner)) {
+      if (p.hp > 0 && this.combat.state().players[flight.owner].singed && this.grounded(p, flight.owner)) {
         p.rootUntil = now + SPELLS.e.root;
         this.combat.state().players[flight.owner].stats.singed!.adhesiveRoots++;
       }
