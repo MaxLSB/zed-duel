@@ -2,6 +2,7 @@ import { championStats, championSpells } from '../shared/champions';
 import { SINGED_SPELLS } from '../shared/singed-balance';
 import { bounded, towards } from '../shared/geometry';
 import { SingedEffects } from './singed-effects';
+import { EzrealEffects } from './ezreal-effects';
 import { YasuoEffects } from './yasuo-effects';
 import { YASUO_SPELLS } from '../shared/yasuo-balance';
 import { LeblancEffects } from './leblanc-effects';
@@ -22,6 +23,7 @@ export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private ultimateEffects: UltimateEffects;
   private singedEffects: SingedEffects;
+  private ezrealEffects: EzrealEffects;
   private ahriEffects: AhriEffects;
   private leblancEffects: LeblancEffects;
   private yasuoEffects: YasuoEffects;
@@ -44,6 +46,7 @@ export class Renderer {
     this.ctx = canvas.getContext('2d')!;
     this.ultimateEffects = new UltimateEffects(this.ctx);
     this.singedEffects = new SingedEffects(this.ctx);
+    this.ezrealEffects = new EzrealEffects(this.ctx);
     this.ahriEffects = new AhriEffects(this.ctx);
     this.leblancEffects = new LeblancEffects(this.ctx);
     this.yasuoEffects = new YasuoEffects(this.ctx);
@@ -195,6 +198,7 @@ export class Renderer {
       }
       this.yasuoEffects.targetCooldown(s, this.player, positions[1 - this.player], now);
       this.yasuoEffects.spells(s, now, COLORS);
+      this.ezrealEffects.spells(s, now, COLORS);
       this.ahriEffects.missiles(s, COLORS);
       this.leblancEffects.spells(s, now, COLORS, this.player);
       for (const q of s.projectiles) {
@@ -225,7 +229,8 @@ export class Renderer {
         c.restore();
       }
       for (const effect of s.effects) {
-        if (['distortion', 'tempest', 'wind-slash', 'last-breath'].includes(effect.kind)) continue;
+        if (['distortion', 'tempest', 'wind-slash', 'last-breath', 'ezreal-flux'].includes(effect.kind))
+          continue;
         if (this.attackEffects.impact(effect, s.players[effect.owner], now, COLORS[effect.owner])) continue;
         if (this.ultimateEffects.effect(effect, now)) continue;
         const age = now - effect.at;
@@ -331,7 +336,8 @@ export class Renderer {
     const pose = this.attackEffects.pose(p, { x: pos.x, y: pos.y - height }, effects, now);
     const body = pose.pos,
       actor = { ...p, facing: pose.facing };
-    if (p.yasuo) this.yasuoEffects.body(actor, body, now, color);
+    if (p.ezreal) this.ezrealEffects.body(actor, body, now, color);
+    else if (p.yasuo) this.yasuoEffects.body(actor, body, now, color);
     else if (p.singed) this.singedEffects.body(actor, body, now, color);
     else if (p.ahri) this.ahriEffects.body(actor, body, now, color);
     else if (p.leblanc) this.leblancEffects.body(actor, body, now, color);
@@ -344,6 +350,7 @@ export class Renderer {
       this.circle(pos, 90);
       c.setLineDash([]);
     }
+    if (p.flux) this.ezrealEffects.mark(p, pos, now, COLORS[p.flux.owner]);
     if (p.mark) this.ultimateEffects.mark(pos, p.mark.expires, now);
     c.fillStyle = '#090e10';
     c.fillRect(pos.x - 78, pos.y - 111, 156, 9);

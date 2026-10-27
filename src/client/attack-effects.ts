@@ -1,5 +1,5 @@
 import { visible } from '../shared/visibility';
-import { championStats } from '../shared/champions';
+import { attackSpeed, championStats } from '../shared/champions';
 import { clamp, direction, lerp } from '../shared/geometry';
 import type { Effect, PlayerState, Vec } from '../shared/types';
 
@@ -19,7 +19,7 @@ export function attackWindup(p: PlayerState, now: number): number | null {
   )
     return null;
   const stats = championStats(p.champion);
-  return clamp(1 - (p.windupUntil - now) / (stats.windup / stats.attackSpeed), 0, 1);
+  return clamp(1 - (p.windupUntil - now) / (stats.windup / attackSpeed(p, now)), 0, 1);
 }
 
 export class AttackEffects {
@@ -62,7 +62,7 @@ export class AttackEffects {
     const progress = attackWindup(p, now);
     if (
       progress === null ||
-      (p.champion !== 'ahri' && p.champion !== 'leblanc') ||
+      (p.champion !== 'ahri' && p.champion !== 'leblanc' && p.champion !== 'ezreal') ||
       target.hp <= 0 ||
       target.untargetableUntil > now ||
       !visible(target, now)

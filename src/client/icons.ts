@@ -1,4 +1,9 @@
 export const icons: Record<string, string> = {
+  'ezreal-passive': '<path d="m12 2 6 10-6 10-6-10zM2 8v8m20-8v8M5 5v14m14-14v14"/>',
+  'ezreal-q': '<path d="m9 6 13 6-13 6 3-6zM2 8h5M1 12h7m-6 4h5"/>',
+  'ezreal-w': '<ellipse cx="15" cy="12" rx="6" ry="9"/><path d="m15 6 3 6-3 6-3-6zM2 8h4m-5 4h6m-5 4h4"/>',
+  'ezreal-e': '<path d="m3 17 6-6-6-6m5 12 6-6-6-6m8-2 2 5 5 2-5 2-2 5-2-5-5-2 5-2zM3 21h12"/>',
+  'ezreal-r': '<path d="M8 2c16 5 16 15 0 20 7-7 7-13 0-20ZM2 7h5m-6 5h7m-6 5h5"/>',
   'yasuo-passive': '<path d="m12 2 8 4v6c0 5-8 10-8 10S4 17 4 12V6zM7 10h8a2 2 0 1 0-2-2m-5 6h7"/>',
   'yasuo-q': '<path d="m4 20 4-4m-3-3 6 6M8 15 19 3l2-1-1 6-10 9M2 8h8m-5-4h8"/>',
   'yasuo-w': '<path d="M4 21V5m8 16V3m8 18V5M1 9h22M1 15h22M2 4l2-2 2 2m4-2 2-1 2 1m4 2 2-2 2 2"/>',

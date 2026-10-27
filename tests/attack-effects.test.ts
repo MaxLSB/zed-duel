@@ -14,7 +14,7 @@ function duel(champion: ChampionId) {
 }
 
 test('basic attack effects capture both endpoints only when damage lands for each champion', () => {
-  for (const champion of ['zed', 'singed', 'ahri', 'leblanc', 'yasuo'] as const) {
+  for (const champion of ['zed', 'singed', 'ahri', 'leblanc', 'yasuo', 'ezreal'] as const) {
     const game = duel(champion),
       [p, enemy] = game.state.players;
     game.input(0, { action: 'attack' });
@@ -38,7 +38,7 @@ test('basic attack effects capture both endpoints only when damage lands for eac
 });
 
 test('Stop cancels the attack visual without creating a projectile impact or damage', () => {
-  for (const champion of ['zed', 'singed', 'ahri', 'leblanc', 'yasuo'] as const) {
+  for (const champion of ['zed', 'singed', 'ahri', 'leblanc', 'yasuo', 'ezreal'] as const) {
     const game = duel(champion),
       p = game.state.players[0];
     game.input(0, { action: 'attack' });

@@ -1,4 +1,5 @@
 import { isChampion } from '../shared/protocol';
+import { EZREAL_PASSIVE } from '../shared/ezreal-balance';
 import { AHRI_PASSIVE } from '../shared/ahri-balance';
 import type { ClientMessage, Input, PlayerId, RoomState, ServerMessage } from '../shared/types';
 
@@ -30,6 +31,7 @@ export abstract class GameConnection extends EventTarget {
       const game = message.room.game;
       if (
         !Array.isArray(game.zones) ||
+        !Array.isArray(game.ezrealMissiles) ||
         !Array.isArray(game.ahriMissiles) ||
         !Array.isArray(game.leblancMissiles) ||
         !Array.isArray(game.chains) ||
@@ -39,6 +41,12 @@ export abstract class GameConnection extends EventTarget {
           (p) =>
             isChampion(p.champion) &&
             Array.isArray(p.sigils) &&
+            (p.champion !== 'ezreal' ||
+              (!!p.ezreal &&
+                Number.isInteger(p.ezreal.stacks) &&
+                p.ezreal.stacks >= 0 &&
+                p.ezreal.stacks <= EZREAL_PASSIVE.stacks &&
+                Number.isFinite(p.ezreal.stacksUntil))) &&
             (p.champion !== 'yasuo' ||
               (!!p.yasuo && Number.isFinite(p.yasuo.flow) && Number.isInteger(p.yasuo.stacks))) &&
             (p.champion !== 'leblanc' || (!!p.leblanc && !!p.leblanc.returns)) &&

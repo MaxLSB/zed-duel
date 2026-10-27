@@ -151,3 +151,29 @@ test('Node LeBlanc practice serializes marks and returns and resets the complete
   assert.deepEqual(room.game.state.leblancMissiles, []);
   assert.deepEqual(room.game.state.chains, []);
 });
+
+test('Node Ezreal practice broadcasts Flux and missiles and resets pending casts', () => {
+  const room = new Room('practice'),
+    a = peer();
+  room.join(a.client, 'ezreal');
+  room.enqueue(a.client, 1, { action: 'cast', spell: 'w', point: { x: 1450, y: 700 } });
+  for (let i = 0; i < 20; i++) room.step();
+  room.broadcast();
+  let snapshot = a.messages.at(-1)!;
+  assert.ok(snapshot.type === 'state');
+  assert.equal(snapshot.room.game.ezrealMissiles[0].kind, 'w');
+  for (let i = 0; i < 20; i++) room.step();
+  room.broadcast();
+  snapshot = a.messages.at(-1)!;
+  assert.ok(snapshot.type === 'state');
+  assert.equal(snapshot.room.game.players[1].flux?.owner, 0);
+  room.enqueue(a.client, 2, { action: 'cast', spell: 'r', point: { x: 1450, y: 700 } });
+  room.step();
+  room.resetPractice();
+  for (let i = 0; i < 120; i++) room.step();
+  assert.equal(room.game.state.players[0].champion, 'ezreal');
+  assert.equal(room.game.state.players[0].ezreal!.casting, null);
+  assert.equal(room.game.state.players[1].flux, null);
+  assert.equal(room.game.state.players[1].hp, 2337);
+  assert.equal(room.game.state.ezrealMissiles.length, 0);
+});

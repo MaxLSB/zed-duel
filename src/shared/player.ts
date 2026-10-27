@@ -27,6 +27,8 @@ export class Player implements PlayerState {
   ahri: PlayerState['ahri'];
   leblanc: PlayerState['leblanc'];
   yasuo: PlayerState['yasuo'];
+  ezreal: PlayerState['ezreal'];
+  flux: PlayerState['flux'] = null;
   sigils: PlayerState['sigils'] = [];
   charm: PlayerState['charm'] = null;
   poison: PlayerState['poison'] = null;
@@ -39,6 +41,7 @@ export class Player implements PlayerState {
     public champion: ChampionId = 'zed',
   ) {
     this.hp = championStats(champion).hp;
+    this.ezreal = champion === 'ezreal' ? { stacks: 0, stacksUntil: 0, casting: null } : null;
     this.yasuo =
       champion === 'yasuo'
         ? {
