@@ -323,10 +323,10 @@ test('potion adds real defenses and poison AP damage, and Grievous Wounds reduce
 test('Slipstream triggers at its expanded range and respects the boundary', () => {
   const game = duel(),
     [p, enemy] = game.state.players;
-  enemy.pos = { x: p.pos.x + 326, y: p.pos.y };
+  enemy.pos = { x: p.pos.x + 476, y: p.pos.y };
   game.step();
   assert.equal(p.singed!.slipstreamUntil, 0);
-  enemy.pos.x = p.pos.x + 325;
+  enemy.pos.x = p.pos.x + 475;
   game.step();
   assert.ok(p.singed!.slipstreamUntil > game.state.time);
 });

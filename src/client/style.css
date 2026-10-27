@@ -821,53 +821,9 @@ dialog p {
   gap: 8px;
 }
 
-/* Mixed matchups show each kit's own metrics; mirrors share the comparison table. */
-.result:has(.champion-recaps) {
-  width: min(620px, calc(100vw - 48px));
-}
 .recap-champion {
   display: block;
   margin-top: 4px;
   color: #9ba69c;
   font-size: 10px;
-}
-.champion-recaps {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(225px, 1fr));
-  gap: 16px;
-  margin-bottom: 20px;
-}
-.champion-recap {
-  min-width: 0;
-  padding: 12px;
-  border: 1px solid #b5bea125;
-  border-radius: 4px;
-  text-align: left;
-}
-.champion-recap h3 {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 0 0 8px;
-  color: #a6b6ad;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  font-weight: 400;
-}
-.champion-recap h3 span,
-.champion-recap.player-0 td {
-  color: #90c7b6;
-}
-.champion-recap.player-1 h3 span,
-.champion-recap.player-1 td {
-  color: #e1a087;
-}
-.champion-recap .match-stats {
-  margin-bottom: 0;
-}
-@media (max-width: 560px) {
-  .champion-recaps {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }

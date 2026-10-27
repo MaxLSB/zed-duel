@@ -120,30 +120,23 @@ export function matchSummary(game: GameState, me: PlayerId, practice: boolean) {
   const players = [game.players[me], game.players[1 - me]];
   const names = ['You', practice ? 'Dummy' : 'Opponent'];
   const details = players.map(championMetrics);
-  const sameChampion = players[0].champion === players[1].champion;
+  const rows = new Map<string, Metric>();
+  for (const metrics of practice ? [details[0]] : details)
+    for (const metric of metrics) rows.set(metric.label, metric);
+  const values = details.map((metrics) => new Map(metrics.map((row) => [row.label, row.value])));
+  const comparison = [...rows.values()]
+    .map(
+      (row) =>
+        `<tr>${label(row)}<td>${values[0].get(row.label) ?? '—'}</td><td>${values[1].get(row.label) ?? '—'}</td></tr>`,
+    )
+    .join('');
   const shared = [
     ['Damage dealt', ...players.map((p) => count(p.stats.damageDealt))],
     ['Basic attacks hit', ...players.map((p) => count(p.stats.attacksHit))],
   ];
-  const comparison = sameChampion
-    ? details[0]
-        .map((row, i) => `<tr>${label(row)}<td>${row.value}</td><td>${details[1][i].value}</td></tr>`)
-        .join('')
-    : '';
-  const cards = sameChampion
-    ? ''
-    : `<div class="champion-recaps">${players
-        .map((p, i) => {
-          if (practice && i === 1) return '';
-          return `<section class="champion-recap player-${p.id}" aria-label="${names[i]} · ${championName(p.champion)} statistics">
-      <h3>${names[i]} <span>${championName(p.champion)}</span></h3>
-      <table class="match-stats" aria-label="${names[i]} · ${championName(p.champion)} abilities"><tbody>${details[i].map((row) => `<tr>${label(row)}<td>${row.value}</td></tr>`).join('')}</tbody></table>
-    </section>`;
-        })
-        .join('')}</div>`;
   return `<p class="match-duration">Duration <strong>${duration(game.time)}</strong></p>
     <table class="match-stats" aria-label="Match statistics">
       <thead><tr><th scope="col">Match stats</th>${players.map((p, i) => `<th scope="col">${names[i]}<span class="recap-champion">${championName(p.champion)}</span></th>`).join('')}</tr></thead>
       <tbody>${comparison}${shared.map(([name, a, b]) => `<tr><th scope="row">${name}</th><td>${a}</td><td>${b}</td></tr>`).join('')}</tbody>
-    </table>${cards}`;
+    </table>`;
 }

@@ -37,7 +37,7 @@ The same bindings, movement, input buffer, Flash, killcam and resets apply. Defa
 | R | Drink Insanity Potion |
 | D | Flash toward the cursor |
 
-Singed has 355 base movement speed. Noxious Slipstream activates within 325 units of the opponent. Poison clouds linger after toggling off; overlapping clouds do not stack damage. Adhesive slows and grounds enemies, preventing Flash and Zed's R and shadow swaps. Fling briefly knocks the opponent airborne. The potion boosts stats and makes poison reduce healing. Active poison and potion are highlighted in the HUD. R shows no countdown while active; its cooldown countdown appears after the buff ends. During the ultimate, a shrinking ring shows the remaining time to both players and turns amber for the final three seconds.
+Singed has 355 base movement speed. Noxious Slipstream activates within 475 units of the opponent. Poison clouds linger after toggling off; overlapping clouds do not stack damage. Adhesive slows and grounds enemies, preventing Flash and Zed's R and shadow swaps. Fling briefly knocks the opponent airborne. The potion boosts stats and makes poison reduce healing. Active poison and potion are highlighted in the HUD. R shows no countdown while active; its cooldown countdown appears after the buff ends. During the ultimate, a shrinking ring shows the remaining time to both players and turns amber for the final three seconds.
 
 Like Zed, Singed has no resource costs, Q/W/E cooldowns divided by three, and 10-second passive/R/Flash cooldowns. Potion lasts 10 seconds, followed by a 10-second cooldown that starts when the buff ends. Bonuses never stack. Each champion uses its own health, defenses, regeneration and attack timing. Shared keybindings remain saved in the same browser settings. See [Singed combat notes](docs/singed.md) for researched values, sources and approximations.
 
@@ -91,7 +91,7 @@ Use the settings button to rebind keys, including for AZERTY keyboards. Click a 
 
 Spells pressed up to 250 ms before a cast lock, cooldown or recast lock ends are buffered and fire when legal. The latest waiting spell replaces the previous one; its aim is kept from the original input. Ready E and Flash remain immediate. S, movement and attack orders cancel waiting spells. An out-of-range R follows its target until casting range, spending its cooldown only when it casts; S or a new movement order cancels the approach. Flash can bring a pending R into range.
 
-After a kill, both players see the last three seconds at 0.75× speed and 1.22× zoom, with a Skip button. The result compares duration, damage dealt and basic attacks hit, plus stats for the champions picked. Mirror matches share a comparison table; mixed matches show each champion's abilities separately:
+After a kill, both players see the last three seconds at 0.75× speed and 1.22× zoom, with a Skip button. The result compares duration, damage dealt and basic attacks hit, plus stats for the champions picked. Every matchup uses the same comparison table. Champion-specific rows appear for the picked champions, with a dash for the player whose kit does not use that ability. Practice shows your kit's rows alongside the shared stats:
 
 - **Zed:** shurikens hit/missed and accuracy, including shadow projectiles.
 - **Ahri:** outbound/return orb hits and pass accuracy, Charms hit/missed and accuracy, Fox-Fire hits, Spirit Rush bolt hits, and actual Essence Theft healing.

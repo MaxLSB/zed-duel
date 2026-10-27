@@ -16,14 +16,14 @@ Fetching Riot Data Dragon's Singed JSON was unsuccessful in this environment. No
 
 | Ability | Behavior | Duel cooldown |
 | --- | --- | --- |
-| Passive | Within 325 units of the opponent, gain 25% movement speed for 2s | 10s per target |
+| Passive | Within 475 units of the opponent, gain 25% movement speed for 2s | 10s per target |
 | Q | Toggle poison; 180-radius clouds last 3.25s, poison lasts 2s, magic damage ticks every 0.25s | 1/3s toggle lockout |
 | W | Place a 265-radius field within 1,000 units; 70% slow and grounding while inside; lasts 3s | 13/3s |
 | E | Targeted melee Fling, 550-unit displacement; landing in the caster's adhesive roots for 2s | 8/3s |
 | R | 10s of +85 AP, armor, MR, flat speed and health regeneration per 5s; poison applies 40% healing reduction | 10s |
 | D | Shared Flash, 400 units | 10s |
 
-Base movement speed is 355 (up from 345), and the passive trigger range is 325 (up from 225), as deliberate duel overrides.
+Base movement speed is 355 (up from 345), and the passive trigger range is 475 (up from 325), as deliberate duel overrides.
 
 These cooldowns deliberately follow the existing Zed sandbox rules, including dividing Q's static toggle lockout by three. Mana is omitted. R lasts 10 seconds as a deliberate duel override, followed by a 10-second cooldown starting when the buff ends (20 seconds between casts). Bonuses never stack. A shrinking ring shows the remaining duration to both players and turns amber for the final three seconds. The R icon is highlighted without a number while active; its numeric cooldown appears only after the buff ends. There is no mana regeneration to apply. Buffed health regeneration is +17 HP/second, before healing reduction.
 
