@@ -17,7 +17,7 @@ function value(section: Locator, label: string, column = 0) {
     .nth(column);
 }
 export function recapBrowserTests(base: string) {
-  test('mixed duel recap shows both champion kits, real counters, mobile layout and a clean rematch', async ({
+  test('mixed duel recap shows generic stats, mobile layout and a clean rematch', async ({
     page,
     browser,
   }) => {
@@ -78,17 +78,26 @@ export function recapBrowserTests(base: string) {
       }
       const table = page.getByRole('table', { name: 'Match statistics', exact: true });
       const guestTable = guest.getByRole('table', { name: 'Match statistics', exact: true });
-      const lb = final.players[0].stats.leblanc!;
-      expect(lb.chainsHit).toBeGreaterThan(0);
-      await expect(value(table, 'Sigils detonated')).toHaveText(String(lb.sigilsDetonated));
-      await expect(value(table, 'Sigils detonated', 1)).toHaveText('—');
-      await expect(value(table, 'Chains hit / missed')).toHaveText(
-        `${lb.chainsHit} / ${lb.chainsThrown - lb.chainsHit}`,
-      );
-      await expect(value(table, 'Charms hit / missed')).toHaveText('—');
-      await expect(value(table, 'Charms hit / missed', 1)).toHaveText('1 / 0');
-      await expect(value(guestTable, 'Charm accuracy')).toHaveText('100%');
-      await expect(value(guestTable, 'Sigils detonated', 1)).toHaveText(String(lb.sigilsDetonated));
+      for (const [me, recap] of [table, guestTable].entries()) {
+        await expect(recap.getByRole('rowheader')).toHaveText([
+          'Damage dealt',
+          'Damage taken',
+          'Basic attacks hit',
+          'Health remaining',
+        ]);
+        await expect(recap.getByRole('columnheader')).toHaveText(['Match stats', 'You', 'Opponent']);
+        for (const column of [0, 1]) {
+          const player = final.players[column === 0 ? me : 1 - me];
+          const enemy = final.players[1 - player.id];
+          const formatted = (n: number) => Math.round(n).toLocaleString('en-US');
+          await expect(value(recap, 'Damage dealt', column)).toHaveText(formatted(player.stats.damageDealt));
+          await expect(value(recap, 'Damage taken', column)).toHaveText(formatted(enemy.stats.damageDealt));
+          await expect(value(recap, 'Basic attacks hit', column)).toHaveText(
+            formatted(player.stats.attacksHit),
+          );
+          await expect(value(recap, 'Health remaining', column)).toHaveText(formatted(player.hp));
+        }
+      }
       await page.screenshot({ path: `test-results/recap-${base === '/' ? 'node' : 'pages'}.png` });
       await page.setViewportSize({ width: 390, height: 844 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

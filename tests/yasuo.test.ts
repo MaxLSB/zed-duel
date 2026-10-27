@@ -509,7 +509,7 @@ test('Yasuo host snapshots preserve combat and recaps; practice resets clear eve
   assert.ok(snapshot.type === 'state');
   assert.equal(snapshot.room.game.windWalls.length, 1);
   assert.equal(snapshot.room.game.tornadoes.length, 1);
-  assert.match(matchSummary(host.game.state, 0, true), /Tempests hit/);
+  assert.match(matchSummary(host.game.state, 0, true), /Damage dealt/);
   host.handle(0, { type: 'reset-practice' });
   const p = host.game.state.players[0];
   assert.equal(p.champion, 'yasuo');

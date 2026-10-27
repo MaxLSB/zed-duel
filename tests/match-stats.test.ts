@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { Game } from '../src/shared/game';
 import { STEP } from '../src/shared/balance';
 import { AHRI_STATS } from '../src/shared/ahri-balance';
-import { CHAMPIONS, championName } from '../src/shared/champions';
+import { CHAMPIONS } from '../src/shared/champions';
 import { matchSummary } from '../src/client/match-summary';
 import { HostedMatch } from '../src/shared/hosted-match';
 import type { ChampionId, PlayerId, ServerMessage, Vec } from '../src/shared/types';
@@ -53,7 +53,6 @@ test('Ahri recap counts both orb passes, fired and missed Charms, flames and Rus
   cast(game, 'r', { ...game.state.players[0].pos });
   advance(game, 0.7);
   assert.equal(stats.rushHits, 1);
-  assert.match(matchSummary(game.state, 0, false), /Charm accuracy<\/th><td>50%/);
 });
 
 test('interrupted Ahri and LeBlanc windups do not count as fired skillshots', () => {
@@ -190,68 +189,55 @@ test('LeBlanc dash impacts and returns count separately; broken tethers grant no
   assert.equal(stats.chainRoots, 0);
 });
 
-test('every matchup and perspective shows only the picked kits, including mirrors and practice', () => {
-  const uniqueLabels = {
-    zed: 'Shurikens hit',
-    ahri: 'Orb hits',
-    singed: 'Poison damage',
-    leblanc: 'Sigils detonated',
-    yasuo: 'Tempests hit',
-  };
+test('every matchup uses the same generic recap, including mirrors and practice', () => {
+  const rowLabels = ['Damage dealt', 'Damage taken', 'Basic attacks hit', 'Health remaining'];
   for (const a of CHAMPIONS)
     for (const b of CHAMPIONS) {
       const game = duel(a, 500, b);
       for (const me of [0, 1] as const) {
-        const html = matchSummary(game.state, me, false);
-        assert.ok(
-          html.includes(`You<span class="recap-champion">${championName(game.state.players[me].champion)}`),
-        );
-        assert.ok(html.includes(uniqueLabels[a]));
-        assert.ok(html.includes(uniqueLabels[b]));
-        for (const other of CHAMPIONS.filter((c) => c !== a && c !== b))
-          assert.ok(!html.includes(uniqueLabels[other]));
-        assert.ok(!/NaN|undefined|Infinity/.test(html));
-        assert.equal((html.match(/aria-label="Match statistics"/g) ?? []).length, 1);
-        assert.equal((html.match(/<table\b/g) ?? []).length, 1);
-        assert.ok(!html.includes('champion-recap'));
-        assert.equal((html.match(/Damage dealt<\/th>/g) ?? []).length, 1);
-        assert.equal((html.match(/Basic attacks hit<\/th>/g) ?? []).length, 1);
+        for (const practice of [false, true]) {
+          const html = matchSummary(game.state, me, practice);
+          assert.deepEqual(
+            [...html.matchAll(/scope="row">([^<]+)/g)].map((m) => m[1]),
+            rowLabels,
+          );
+          assert.ok(html.includes('<th scope="col">You</th>'));
+          assert.ok(html.includes(`<th scope="col">${practice ? 'Dummy' : 'Opponent'}</th>`));
+          assert.ok(!/NaN|undefined|Infinity|recap-champion/.test(html));
+          assert.equal((html.match(/<table\b/g) ?? []).length, 1);
+        }
       }
     }
-  const practice = matchSummary(duel('leblanc').state, 0, true);
-  assert.ok(practice.includes('Dummy'));
-  assert.ok(!practice.includes('Shurikens'));
-  const old = duel('leblanc');
-  delete old.state.players[0].stats.leblanc;
-  assert.match(matchSummary(old.state, 0, false), /Sigils detonated[^<]*<\/th><td>—/);
-  // Host snapshots may be from an older build or contain malformed optional counters.
   const malformed = duel('ahri', 500, 'singed');
-  Object.assign(malformed.state.players[0].stats.ahri!, {
-    orbOutHits: '<img src=x onerror=alert(1)>',
-    charmsHit: '<script>',
-    healing: NaN,
+  Object.assign(malformed.state.players[0].stats, {
+    damageDealt: '<img src=x onerror=alert(1)>',
+    attacksHit: NaN,
   });
-  Object.assign(malformed.state.players[1].stats.singed!, { poisonSeconds: 'invalid' });
+  malformed.state.players[1].hp = Infinity;
   const safe = matchSummary(malformed.state, 0, false);
-  assert.ok(!/NaN|undefined|Infinity|<img|<script>|invalid/.test(safe));
+  assert.ok(!/NaN|undefined|Infinity|<img/.test(safe));
+  assert.ok(safe.includes('—'));
 });
 
-test('mixed recap keeps kit and shared values in the correct comparison columns', () => {
+test('recap compares shared stats from each player perspective', () => {
   const game = duel('leblanc', 500, 'ahri');
   const [leblanc, ahri] = game.state.players;
-  leblanc.stats.leblanc!.sigilsDetonated = 4;
-  ahri.stats.ahri!.charmsThrown = 5;
-  ahri.stats.ahri!.charmsHit = 3;
-  leblanc.stats.damageDealt = 1200;
+  leblanc.stats.damageDealt = 1200.4;
   ahri.stats.damageDealt = 750;
+  leblanc.stats.attacksHit = 8;
+  ahri.stats.attacksHit = 3;
+  leblanc.hp = 427.8;
+  ahri.hp = 0;
   const host = matchSummary(game.state, 0, false);
-  assert.match(host, /Sigils detonated<\/th><td>4<\/td><td>—/);
-  assert.match(host, /Charms hit \/ missed<\/th><td>—<\/td><td>3 \/ 2/);
   assert.match(host, /Damage dealt<\/th><td>1,200<\/td><td>750/);
+  assert.match(host, /Damage taken<\/th><td>750<\/td><td>1,200/);
+  assert.match(host, /Basic attacks hit<\/th><td>8<\/td><td>3/);
+  assert.match(host, /Health remaining<\/th><td>428<\/td><td>0/);
   const guest = matchSummary(game.state, 1, false);
-  assert.match(guest, /Sigils detonated<\/th><td>—<\/td><td>4/);
-  assert.match(guest, /Charms hit \/ missed<\/th><td>3 \/ 2<\/td><td>—/);
   assert.match(guest, /Damage dealt<\/th><td>750<\/td><td>1,200/);
+  assert.match(guest, /Damage taken<\/th><td>1,200<\/td><td>750/);
+  assert.match(guest, /Basic attacks hit<\/th><td>3<\/td><td>8/);
+  assert.match(guest, /Health remaining<\/th><td>0<\/td><td>428/);
 });
 
 test('browser host snapshots include champion stats and reset them for the next round', () => {

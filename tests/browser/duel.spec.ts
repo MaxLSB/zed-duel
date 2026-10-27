@@ -261,8 +261,8 @@ test('a kill plays a zoomed replay before stats, then practice resets cleanly', 
       .filter({ has: page.getByRole('rowheader', { name: label, exact: true }) })
       .getByRole('cell')
       .first();
-  await expect(row('Shurikens hit')).toHaveText(String(stats.shurikensHit));
-  await expect(row('Shurikens missed')).toHaveText(String(stats.shurikensThrown - stats.shurikensHit));
+  await expect(row('Basic attacks hit')).toHaveText(String(stats.attacksHit));
+  await expect(row('Health remaining')).toHaveText(Math.round(final.players[0].hp).toLocaleString('en-US'));
   await expect(row('Damage dealt')).toHaveText(Math.round(stats.damageDealt).toLocaleString('en-US'));
   await expect(page.locator('.match-duration')).toContainText(await page.locator('#clock').innerText());
   await page.screenshot({ path: 'test-results/match-summary.png' });
