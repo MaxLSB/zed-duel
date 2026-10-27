@@ -1,7 +1,7 @@
 import { STEP } from './balance';
 import type { Input, PlayerId } from './types';
 
-export const SPELL_BUFFER_WINDOW = 0.25;
+export const SPELL_BUFFER_WINDOW = 0.5;
 export type CastInput = Extract<Input, { action: 'cast' }>;
 
 interface BufferedCast {

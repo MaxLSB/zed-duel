@@ -3,10 +3,12 @@ import { updateOverlay } from './overlay';
 import { ChampionSelection } from './champion-selection';
 import { CHAMPIONS, championName, championStats, championSpells } from '../shared/champions';
 import { isChampion } from '../shared/protocol';
+import { yasuoDescriptions } from './yasuo-abilities';
+import { YASUO_PASSIVE } from '../shared/yasuo-balance';
 import { leblancDescriptions } from './leblanc-abilities';
 import { LEBLANC_PASSIVE, LEBLANC_SPELLS } from '../shared/leblanc-balance';
 import { ahriDescriptions } from './ahri-abilities';
-import { AHRI_PASSIVE } from '../shared/ahri-balance';
+import { AHRI_PASSIVE, AHRI_SPELLS } from '../shared/ahri-balance';
 import { singedDescriptions } from './singed-abilities';
 import { SINGED_PASSIVE } from '../shared/singed-balance';
 import { PASSIVE, SPELL_KEYS, SPELLS } from '../shared/balance';
@@ -108,13 +110,15 @@ function showChampion(champion: ChampionId) {
   for (const key of ['passive', ...SPELL_KEYS] as const) {
     const name =
       key === 'passive'
-        ? champion === 'leblanc'
-          ? LEBLANC_PASSIVE.name
-          : champion === 'ahri'
-            ? AHRI_PASSIVE.name
-            : champion === 'singed'
-              ? SINGED_PASSIVE.name
-              : 'Contempt for the Weak'
+        ? champion === 'yasuo'
+          ? YASUO_PASSIVE.name
+          : champion === 'leblanc'
+            ? LEBLANC_PASSIVE.name
+            : champion === 'ahri'
+              ? AHRI_PASSIVE.name
+              : champion === 'singed'
+                ? SINGED_PASSIVE.name
+                : 'Contempt for the Weak'
         : spells[key].name;
     const slot = $(`[data-spell="${key}"]`);
     slot.setAttribute('aria-label', name);
@@ -122,16 +126,18 @@ function showChampion(champion: ChampionId) {
       champion !== 'zed' && key !== 'd' ? `${champion}-${key}` : key,
     );
     $(`#tip-${key}`).innerHTML =
-      `<strong>${name}</strong>${{ zed: descriptions, singed: singedDescriptions, ahri: ahriDescriptions, leblanc: leblancDescriptions }[champion][key]}`;
+      `<strong>${name}</strong>${{ zed: descriptions, singed: singedDescriptions, ahri: ahriDescriptions, leblanc: leblancDescriptions, yasuo: yasuoDescriptions }[champion][key]}`;
   }
   $('#cast-help').textContent =
-    champion === 'leblanc'
-      ? 'Hover your opponent for Sigil of Malice. Aim Distortion and Chains with your cursor. Recast Distortion to return. Mimic repeats your last basic spell and has a separate return.'
-      : champion === 'ahri'
-        ? 'Aim Orb of Deception, Charm, Spirit Rush and Flash with your cursor. Fox-Fire seeks nearby enemies. Recast Spirit Rush for up to three dashes.'
-        : champion === 'singed'
-          ? 'Toggle Poison Trail while moving. Aim Mega Adhesive and Flash with your cursor. Hover your opponent for Fling. Insanity Potion buffs you immediately.'
-          : 'Aim Shuriken, Living Shadow and Flash with your cursor. Hover your opponent for Death Mark.';
+    champion === 'yasuo'
+      ? 'Aim Steel Tempest and Wind Wall with your cursor. Hover the opponent for Sweeping Blade; cast Steel Tempest during the dash to spin. Land two Q hits, then a tornado; press R to automatically ult the closest airborne opponent in range.'
+      : champion === 'leblanc'
+        ? 'Hover your opponent for Sigil of Malice. Aim Distortion and Chains with your cursor. Recast Distortion to return. Mimic repeats your last basic spell and has a separate return.'
+        : champion === 'ahri'
+          ? 'Aim Orb of Deception, Charm, Spirit Rush and Flash with your cursor. Fox-Fire seeks nearby enemies. Recast Spirit Rush for up to three dashes.'
+          : champion === 'singed'
+            ? 'Toggle Poison Trail while moving. Aim Mega Adhesive and Flash with your cursor. Hover your opponent for Fling. Insanity Potion buffs you immediately.'
+            : 'Aim Shuriken, Living Shadow and Flash with your cursor. Hover your opponent for Death Mark.';
 }
 $('#overlay').addEventListener('change', (event) => {
   const select = event.target;
@@ -180,7 +186,15 @@ function showLobby() {
   }
   $('#clock').textContent = '00:00';
   document.querySelectorAll('.ability').forEach((slot) => {
-    slot.classList.remove('on-cooldown', 'recast', 'ability-active', 'charge-window', 'passive-counter');
+    slot.classList.remove(
+      'on-cooldown',
+      'recast',
+      'ability-active',
+      'charge-window',
+      'passive-counter',
+      'rush-active',
+    );
+    (slot as HTMLElement).style.removeProperty('--rush-progress');
     slot.removeAttribute('aria-pressed');
     slot.querySelector('.cooldown')!.textContent = '';
   });
@@ -271,13 +285,22 @@ function renderHUD(game: GameState, room: RoomState) {
                               ? 'POISONED'
                               : p.singed && p.singed.insanityUntil > game.time
                                 ? 'INSANITY POTION'
-                                : '';
+                                : p.yasuo?.dash
+                                  ? 'SWEEPING BLADE'
+                                  : p.yasuo && p.yasuo.ultimateUntil > game.time
+                                    ? 'LAST BREATH'
+                                    : p.yasuo && p.yasuo.shield > 0 && p.yasuo.shieldUntil > game.time
+                                      ? 'FLOW SHIELD'
+                                      : p.yasuo?.stacks === 2
+                                        ? 'TORNADO READY'
+                                        : '';
   }
   $('#clock').textContent = duration(game.time);
   const p = game.players[me];
   for (const key of ['passive', ...SPELL_KEYS] as const) {
     const slot = $<HTMLButtonElement>(`[data-spell="${key}"]`);
     const rush = key === 'r' && p.ahri && p.ahri.rushUntil > game.time && p.ahri.rushCharges > 0;
+    const rushActive = key === 'r' && !!p.ahri && (p.ahri.rushUntil > game.time || !!p.ahri.dash);
     const pad = key === 'w' || key === 'r' ? p.leblanc?.returns[key] : null;
     const returning = pad && pad.expires > game.time;
     const mimic = key === 'r' && p.leblanc;
@@ -298,14 +321,15 @@ function renderHUD(game: GameState, room: RoomState) {
         ? p.shadows.find((s) => s.kind === key && !s.swapped && s.swapUntil > game.time)
         : null;
     const active =
-      !!p.singed &&
-      (key === 'q'
-        ? p.singed.poisonOn
-        : key === 'r'
-          ? p.singed.insanityUntil > game.time
-          : key === 'passive'
-            ? p.singed.slipstreamUntil > game.time
-            : false);
+      rushActive ||
+      (!!p.singed &&
+        (key === 'q'
+          ? p.singed.poisonOn
+          : key === 'r'
+            ? p.singed.insanityUntil > game.time
+            : key === 'passive'
+              ? p.singed.slipstreamUntil > game.time
+              : false));
     slot.classList.toggle('ability-active', active);
     if (key === 'q' && p.singed) slot.setAttribute('aria-pressed', String(p.singed.poisonOn));
     else slot.removeAttribute('aria-pressed');
@@ -316,8 +340,8 @@ function renderHUD(game: GameState, room: RoomState) {
           ? `↔ ${Math.ceil(pad.expires - game.time)}s`
           : mimic && !p.leblanc!.lastSpell
             ? '—'
-            : rush
-              ? `${p.ahri!.rushCharges} · ${Math.ceil(p.ahri!.rushUntil - game.time)}s`
+            : rushActive
+              ? `${p.ahri!.rushCharges}`
               : active
                 ? key === 'r' || key === 'q'
                   ? ''
@@ -335,9 +359,32 @@ function renderHUD(game: GameState, room: RoomState) {
       'on-cooldown',
       (remaining > 0 || (!!mimic && !p.leblanc!.lastSpell)) && !shadow && !active && !returning,
     );
-    slot.classList.toggle('recast', !!shadow || !!rush || !!returning);
-    slot.classList.toggle('charge-window', !!rush || !!returning);
-    slot.classList.toggle('passive-counter', key === 'passive' && !!p.ahri);
+    slot.classList.toggle('recast', !!shadow || !!returning);
+    slot.classList.toggle('charge-window', !!returning);
+    slot.classList.toggle('rush-active', rushActive);
+    if (rushActive)
+      slot.style.setProperty(
+        '--rush-progress',
+        `${Math.max(0, Math.min(1, (p.ahri!.rushUntil - game.time) / AHRI_SPELLS.r.duration)) * 100}%`,
+      );
+    else slot.style.removeProperty('--rush-progress');
+    slot.classList.toggle('passive-counter', key === 'passive' && (!!p.ahri || !!p.yasuo));
+    if (p.yasuo) {
+      const kit = p.yasuo,
+        label = slot.querySelector('.cooldown')!;
+      if (key === 'passive') label.textContent = `${Math.floor(kit.flow)}/100`;
+      if (key === 'q' && (remaining <= 0 || kit.stacks === 2)) label.textContent = '';
+      if (key === 'q' && kit.stacks === 2) slot.classList.remove('on-cooldown');
+      if (key === 'r' && remaining <= 0 && !game.players[1 - me].airborne) {
+        label.textContent = '—';
+        slot.classList.add('on-cooldown');
+      }
+      slot.classList.toggle(
+        'ability-active',
+        (key === 'q' && kit.stacks === 2) ||
+          (key === 'passive' && (kit.flow >= 100 || (kit.shield > 0 && kit.shieldUntil > game.time))),
+      );
+    }
   }
 }
 renderer.onReplayFrame = (game) => {
@@ -429,8 +476,7 @@ document.addEventListener('click', (event) => {
   }
   if (action === 'create-room') connect({ type: 'create', champion: selectedChampion });
   if (action === 'practice') connect({ type: 'practice', champion: selectedChampion });
-  if (action === 'reset-practice' || action === 'practice-again')
-    connection.send({ type: 'reset-practice' });
+  if (action === 'reset-practice' || action === 'practice-again') connection.send({ type: 'reset-practice' });
   if (action === 'ready') connection.send({ type: 'ready' });
   if (action === 'copy-room' || action === 'copy-card') void copyInvite();
   if (action === 'leave' || action === 'cancel-connect') connection.send({ type: 'leave' });

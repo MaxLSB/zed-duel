@@ -10,11 +10,11 @@ Each E cast shares one damage instance across Zed and all shadows, including del
 
 ## Input buffering
 
-The server keeps one waiting spell per player for 250 ms, with one simulation tick of expiry tolerance. Inputs retain their original aim and target. Only near-ready casts are accepted; cooldowns start on execution. Instant E and Flash can execute without dropping a different waiting spell. S, movement and attack orders cancel the buffer; death, round resets and disconnects clear it. Recasts retain their shadow identity so an expired swap cannot become a fresh cast.
+The server keeps one waiting spell per player for 500 ms, with one simulation tick of expiry tolerance. Inputs retain their original aim and target. Only near-ready casts are accepted; cooldowns start on execution. Instant E and Flash can execute without dropping a different waiting spell. S, movement and attack orders cancel the buffer; death, round resets and disconnects clear it. Recasts retain their shadow identity so an expired swap cannot become a fresh cast.
 
 An initial R ordered outside casting range follows its target until in range. The order is cancelled by S, movement/attack orders, another accepted champion spell or an invalid target. Flash preserves the approach order. No cooldown is spent while approaching.
 
-The 250 ms window is a game-specific tuning choice. [Riot’s patch 9.1 notes](https://www.leagueoflegends.com/en-gb/news/game-updates/patch-9-1-notes/) document ability-specific buffering; this draft does not claim every League interaction matches exactly.
+The 500 ms window is a game-specific tuning choice. [Riot’s patch 9.1 notes](https://www.leagueoflegends.com/en-gb/news/game-updates/patch-9-1-notes/) document ability-specific buffering; this draft does not claim every League interaction matches exactly.
 
 ## Sources and conflicts
 

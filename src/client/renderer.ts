@@ -2,6 +2,8 @@ import { championStats, championSpells } from '../shared/champions';
 import { SINGED_SPELLS } from '../shared/singed-balance';
 import { bounded, towards } from '../shared/geometry';
 import { SingedEffects } from './singed-effects';
+import { YasuoEffects } from './yasuo-effects';
+import { YASUO_SPELLS } from '../shared/yasuo-balance';
 import { LeblancEffects } from './leblanc-effects';
 import { LEBLANC_SPELLS } from '../shared/leblanc-balance';
 import { visible } from '../shared/visibility';
@@ -22,6 +24,7 @@ export class Renderer {
   private singedEffects: SingedEffects;
   private ahriEffects: AhriEffects;
   private leblancEffects: LeblancEffects;
+  private yasuoEffects: YasuoEffects;
   private attackEffects: AttackEffects;
   private current: GameState | null = null;
   private previous: GameState | null = null;
@@ -43,6 +46,7 @@ export class Renderer {
     this.singedEffects = new SingedEffects(this.ctx);
     this.ahriEffects = new AhriEffects(this.ctx);
     this.leblancEffects = new LeblancEffects(this.ctx);
+    this.yasuoEffects = new YasuoEffects(this.ctx);
     this.attackEffects = new AttackEffects(this.ctx);
     new ResizeObserver(() => this.resize()).observe(canvas);
     this.resize();
@@ -154,7 +158,12 @@ export class Renderer {
           this.controls.hovered === 'r' && self.leblanc
             ? (self.leblanc.lastSpell ?? 'q')
             : this.controls.hovered;
-        this.circle(self.pos, championSpells(self.champion)[hovered].range);
+        this.circle(
+          self.pos,
+          self.yasuo?.stacks === 2 && hovered === 'q'
+            ? YASUO_SPELLS.q.tornadoRange
+            : championSpells(self.champion)[hovered].range,
+        );
         if (self.leblanc && hovered === 'w')
           this.circle(
             bounded(towards(self.pos, this.controls.cursor, LEBLANC_SPELLS.w.range)),
@@ -184,6 +193,8 @@ export class Renderer {
           COLORS[p.id],
         );
       }
+      this.yasuoEffects.targetCooldown(s, this.player, positions[1 - this.player], now);
+      this.yasuoEffects.spells(s, now, COLORS);
       this.ahriEffects.missiles(s, COLORS);
       this.leblancEffects.spells(s, now, COLORS, this.player);
       for (const q of s.projectiles) {
@@ -214,7 +225,7 @@ export class Renderer {
         c.restore();
       }
       for (const effect of s.effects) {
-        if (effect.kind === 'distortion') continue;
+        if (['distortion', 'tempest', 'wind-slash', 'last-breath'].includes(effect.kind)) continue;
         if (this.attackEffects.impact(effect, s.players[effect.owner], now, COLORS[effect.owner])) continue;
         if (this.ultimateEffects.effect(effect, now)) continue;
         const age = now - effect.at;
@@ -320,7 +331,8 @@ export class Renderer {
     const pose = this.attackEffects.pose(p, { x: pos.x, y: pos.y - height }, effects, now);
     const body = pose.pos,
       actor = { ...p, facing: pose.facing };
-    if (p.singed) this.singedEffects.body(actor, body, now, color);
+    if (p.yasuo) this.yasuoEffects.body(actor, body, now, color);
+    else if (p.singed) this.singedEffects.body(actor, body, now, color);
     else if (p.ahri) this.ahriEffects.body(actor, body, now, color);
     else if (p.leblanc) this.leblancEffects.body(actor, body, now, color);
     else this.ninja(body, pose.facing, color, p.hp <= 0 ? 0.2 : 1);
@@ -337,6 +349,7 @@ export class Renderer {
     c.fillRect(pos.x - 78, pos.y - 111, 156, 9);
     c.fillStyle = color;
     c.fillRect(pos.x - 78, pos.y - 111, (156 * p.hp) / championStats(p.champion).hp, 9);
+    if (p.yasuo) this.yasuoEffects.flow(p, pos);
   }
 
   private ninja(pos: Vec, facing: number, color: string, opacity: number) {

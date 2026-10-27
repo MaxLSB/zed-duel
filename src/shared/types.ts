@@ -5,7 +5,42 @@ export interface Vec {
   y: number;
 }
 export type PlayerId = 0 | 1;
-export type ChampionId = 'zed' | 'singed' | 'ahri' | 'leblanc';
+export type ChampionId = 'zed' | 'singed' | 'ahri' | 'leblanc' | 'yasuo';
+export interface YasuoState {
+  flow: number;
+  shield: number;
+  shieldUntil: number;
+  stacks: number;
+  stacksUntil: number;
+  dashTargetUntil: number;
+  dashStacks: number;
+  dashStacksUntil: number;
+  ultimateUntil: number;
+  dash: {
+    from: Vec;
+    to: Vec;
+    started: number;
+    ends: number;
+    hit: boolean;
+    damage: number;
+    slash: 'normal' | 'tornado' | null;
+  } | null;
+}
+export interface WindWall {
+  id: number;
+  owner: PlayerId;
+  from: Vec;
+  to: Vec;
+  created: number;
+  expires: number;
+}
+export interface Tornado {
+  id: number;
+  owner: PlayerId;
+  pos: Vec;
+  velocity: Vec;
+  remaining: number;
+}
 export interface LeblancState {
   lastSpell: 'q' | 'w' | 'e' | null;
   invisibleUntil: number;
@@ -130,6 +165,15 @@ export interface MatchStats {
     adhesiveRoots: number;
     potionSeconds: number;
   };
+  yasuo?: {
+    tempestsCast: number;
+    tempestsHit: number;
+    knockups: number;
+    projectilesBlocked: number;
+    dashesHit: number;
+    ultimatesHit: number;
+    shieldAbsorbed: number;
+  };
   leblanc?: {
     sigilsDetonated: number;
     distortionHits: number;
@@ -146,6 +190,7 @@ export interface PlayerState {
   singed: SingedState | null;
   ahri: AhriState | null;
   leblanc: LeblancState | null;
+  yasuo: YasuoState | null;
   sigils: Sigil[];
   charm: { owner: PlayerId; until: number } | null;
   poison: { owner: PlayerId; until: number; tickAt: number } | null;
@@ -182,7 +227,19 @@ export interface Projectile {
 }
 export interface Effect {
   id: number;
-  kind: 'slash' | 'blink' | 'hit' | 'passive' | 'attack' | 'vanish' | 'emerge' | 'detonate' | 'distortion';
+  kind:
+    | 'slash'
+    | 'blink'
+    | 'hit'
+    | 'passive'
+    | 'attack'
+    | 'vanish'
+    | 'emerge'
+    | 'detonate'
+    | 'distortion'
+    | 'tempest'
+    | 'wind-slash'
+    | 'last-breath';
   pos: Vec;
   owner: PlayerId;
   at: number;
@@ -199,6 +256,8 @@ export interface GameState {
   ahriMissiles: AhriMissile[];
   leblancMissiles: LeblancMissile[];
   chains: Chain[];
+  windWalls: WindWall[];
+  tornadoes: Tornado[];
   zones: GroundZone[];
   effects: Effect[];
   winner: PlayerId | 'draw' | null;

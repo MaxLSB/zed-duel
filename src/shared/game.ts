@@ -2,6 +2,9 @@ import { championStats, potionBonus } from './champions';
 import { SINGED_SPELLS } from './singed-balance';
 import { SingedKit } from './singed';
 import { AhriKit } from './ahri';
+import { YasuoKit } from './yasuo';
+import { YASUO_SPELLS } from './yasuo-balance';
+import { blockedByWindWall } from './wind-wall';
 import { LeblancKit } from './leblanc';
 import { LEBLANC_SPELLS } from './leblanc-balance';
 import { visible } from './visibility';
@@ -42,7 +45,19 @@ export class Game {
     p.castUntil = this.state.time;
     if (p.ahri) p.ahri.dash = null;
     if (p.leblanc) p.leblanc.dash = null;
+    if (p.yasuo) {
+      p.yasuo.dash = null;
+      p.yasuo.ultimateUntil = 0;
+    }
   };
+
+  private yasuo = new YasuoKit({
+    state: () => this.state,
+    schedule: (delay, run) => this.schedule(delay, run),
+    damage: (owner, target, raw, type) => this.damage(owner, target, raw, type),
+    effect: (kind, pos, owner, amount, from) => this.effect(kind, pos, owner, amount, from),
+    interrupt: this.interrupt,
+  });
 
   private leblanc = new LeblancKit({
     state: () => this.state,
@@ -101,12 +116,15 @@ export class Game {
       ahriMissiles: [],
       leblancMissiles: [],
       chains: [],
+      windWalls: [],
+      tornadoes: [],
       effects: [],
       winner: null,
     };
   }
 
   start(countdown = 3) {
+    this.yasuo.reset();
     this.ahri.reset();
     this.leblanc.reset();
     this.state = this.initialState();
@@ -120,6 +138,7 @@ export class Game {
   }
 
   disconnect() {
+    this.yasuo.reset();
     this.ahri.reset();
     this.leblanc.reset();
     this.state = this.initialState();
@@ -178,6 +197,7 @@ export class Game {
     const due = this.scheduled.filter((event) => event.at <= s.time);
     this.scheduled = this.scheduled.filter((event) => event.at > s.time);
     due.sort((a, b) => a.at - b.at).forEach((event) => event.run());
+    this.yasuo.update(dt);
     this.singed.update(dt);
     this.ahri.update(dt);
     this.leblanc.update(dt);
@@ -230,7 +250,7 @@ export class Game {
       movePlayer(p, this.state, dt);
       return;
     }
-    if (this.ahri.moveDash(p) || this.leblanc.moveDash(p)) return;
+    if (this.yasuo.moveDash(p) || this.ahri.moveDash(p) || this.leblanc.moveDash(p)) return;
     if (!this.targetable(p) || p.castUntil > now) return;
     const enemy = this.enemy(p);
     if (this.approachTargets.has(p.id)) {
@@ -255,7 +275,11 @@ export class Game {
       p.destination = distance(p.pos, enemy.pos) > attackRange ? { ...enemy.pos } : null;
       if (!p.destination && p.attackAt <= now && p.windupUntil === 0) this.attack(p, enemy);
     }
-    if (p.id !== this.stationary) movePlayer(p, this.state, dt);
+    if (p.id !== this.stationary) {
+      const before = { ...p.pos };
+      movePlayer(p, this.state, dt);
+      this.yasuo.moved(p, before);
+    }
   }
 
   private separatePlayers() {
@@ -270,7 +294,9 @@ export class Game {
       a.ahri?.dash ||
       b.ahri?.dash ||
       a.leblanc?.dash ||
-      b.leblanc?.dash
+      b.leblanc?.dash ||
+      a.yasuo?.dash ||
+      b.yasuo?.dash
     )
       return;
     const d = distance(a.pos, b.pos);
@@ -307,6 +333,7 @@ export class Game {
         p.champion === 'zed' &&
         enemy.hp < enemyStats.hp * PASSIVE.threshold &&
         p.passiveAt <= this.state.time;
+      if (stats.attackRange > 300 && blockedByWindWall(this.state, p.id, p.pos, enemy.pos, 12)) return;
       this.damage(p.id, enemy, stats.ad, 'physical');
       p.stats.attacksHit++;
       this.effect('attack', enemy.pos, p.id, undefined, p.pos);
@@ -344,10 +371,34 @@ export class Game {
     const displacement =
       key === 'd' ||
       (p.champion === 'ahri' && key === 'r') ||
+      (!!p.yasuo && (key === 'e' || key === 'r')) ||
       (!!p.leblanc && (!!this.leblanc.returnPoint(p, key) || this.leblanc.spell(p, key) === 'w')) ||
       (p.champion === 'zed' && (key === 'r' || (key === 'w' && !!shadow)));
     if (displacement && (p.rootUntil > now || this.singed.grounded(p))) return null;
     if (p.airborne || (p.charm && p.charm.until > now)) return null;
+    if (p.yasuo) {
+      const enemy = this.enemy(p),
+        kit = p.yasuo;
+      if (kit.ultimateUntil > now || (kit.dash && key !== 'q' && key !== 'r' && key !== 'd')) return null;
+      if (key === 'q' && kit.dash?.slash) return null;
+      if (
+        (key === 'e' || key === 'r') &&
+        ((key === 'e' && target !== enemy.id) ||
+          enemy.hp <= 0 ||
+          !this.targetable(enemy) ||
+          !visible(enemy, now) ||
+          distance(p.pos, enemy.pos) > YASUO_SPELLS[key].range + championStats(enemy.champion).radius)
+      )
+        return null;
+      if (key === 'e' && kit.dashTargetUntil > now) return null;
+      if (key === 'r' && (!enemy.airborne || enemy.airborne.ends <= now)) return null;
+      return Math.max(
+        now,
+        p.untargetableUntil,
+        p.cooldowns[key],
+        key === 'w' || key === 'd' ? 0 : p.castUntil,
+      );
+    }
     if (p.leblanc) {
       if (p.leblanc.dash) return null;
       const pad = this.leblanc.returnPoint(p, key);
@@ -473,6 +524,7 @@ export class Game {
     }
     if (targeted) this.cancelApproach(p);
     if (p.leblanc && key !== 'd' && !this.leblanc.returnPoint(p, key)) p.leblanc.invisibleUntil = 0;
+    if (p.yasuo && key !== 'd') return this.yasuo.cast(p, key, point);
     if (p.leblanc && key !== 'd') return this.leblanc.cast(p, key, point);
     if (p.champion === 'singed' && key !== 'd') return this.singed.cast(p, key, point);
     if (p.champion === 'ahri' && key !== 'd') return this.ahri.cast(p, key, point);
@@ -487,6 +539,8 @@ export class Game {
       p.destination = null;
       p.windupUntil = 0;
       this.effect('blink', p.pos, p.id);
+      // Flash ends Sweeping Blade and carries its queued circular Q to the blink destination.
+      this.yasuo.finishDash(p);
     }
     return true;
   }
@@ -633,6 +687,7 @@ export class Game {
     this.state.projectiles = this.state.projectiles.filter((q) => {
       const step = Math.min(q.remaining, SPELLS.q.speed * dt);
       const next = { x: q.pos.x + q.velocity.x * step, y: q.pos.y + q.velocity.y * step };
+      if (blockedByWindWall(this.state, q.owner, q.pos, next, SPELLS.q.width / 2)) return false;
       const target = this.state.players[1 - q.owner];
       const group = this.groups.get(q.group);
       const hit =
@@ -672,7 +727,8 @@ export class Game {
     if (store && type !== 'true' && target.mark?.owner === owner) target.mark.stored += raw;
     const stats = championStats(target.champion);
     const resistance = (type === 'physical' ? stats.armor : stats.mr) + potionBonus(target, this.state.time);
-    const amount = type === 'true' ? raw : (raw * 100) / (100 + resistance);
+    const mitigated = type === 'true' ? raw : (raw * 100) / (100 + resistance);
+    const amount = this.yasuo.absorb(target, mitigated);
     this.state.players[owner].stats.damageDealt += Math.min(target.hp, amount);
     target.hp = Math.max(0, target.hp - amount);
     this.effect('hit', target.pos, owner, amount);

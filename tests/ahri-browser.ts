@@ -41,14 +41,14 @@ export function ahriBrowserTests(base: string) {
     await page.keyboard.press('z');
     await aim(page, 950, 300);
     await page.keyboard.press('r');
-    await expect(page.locator('[data-spell=r]')).toHaveClass(/recast/);
-    await expect(page.locator('[data-spell=r] .cooldown')).toContainText('2 ·');
+    await expect(page.locator('[data-spell=r]')).toHaveClass(/rush-active/);
+    await expect(page.locator('[data-spell=r] .cooldown')).toHaveText('2');
     await page.screenshot({ path: `test-results/ahri-${base === '/' ? 'node' : 'pages'}-practice.png` });
     await page.getByRole('button', { name: 'Reset practice', exact: true }).click();
     await expect(page.locator('#hp-1')).toHaveText('2337 / 2337');
     await expect(page.locator('#status-1')).toHaveText('');
     await expect(page.locator('[data-spell=passive] .cooldown')).toHaveText('0/3');
-    await expect(page.locator('[data-spell=r]')).not.toHaveClass(/recast/);
+    await expect(page.locator('[data-spell=r]')).not.toHaveClass(/rush-active/);
     await page.reload();
     await expect(page.locator('#overlay')).toHaveClass(/hidden/);
     await expect(page.locator('#champion-0')).toHaveText('AHRI');
@@ -57,6 +57,41 @@ export function ahriBrowserTests(base: string) {
     await page.getByLabel('Champion', { exact: true }).selectOption('zed');
     await expect(page.locator('[data-spell=r]')).toHaveAccessibleName('Death Mark');
     expect(errors).toEqual([]);
+  });
+
+  test('Spirit Rush shows charges and a shrinking outline before its full cooldown', async ({ page }) => {
+    await page.goto(`${base}?practice=1&champion=ahri`);
+    await expect(page.locator('#overlay')).toHaveClass(/hidden/);
+    const slot = page.locator('[data-spell=r]');
+    const label = slot.locator('.cooldown');
+    await aim(page, 950, 200);
+    await page.keyboard.press('r');
+    await expect(label).toHaveText('2');
+    await expect(slot).toHaveClass(/ability-active/);
+    await expect(slot).not.toHaveClass(/on-cooldown/);
+    const progress = () =>
+      slot.evaluate((el) => parseFloat((el as HTMLElement).style.getPropertyValue('--rush-progress')));
+    const initial = await progress();
+    await expect.poll(progress).toBeLessThan(initial - 6);
+    await aim(page, 450, 200);
+    await page.keyboard.press('r');
+    await expect(label).toHaveText('1');
+    await page.waitForTimeout(1100);
+    await aim(page, 450, 700);
+    await page.keyboard.press('r');
+    await expect(slot).toHaveClass(/on-cooldown/);
+    await expect(slot).not.toHaveClass(/rush-active/);
+    expect(Number(await label.textContent())).toBeGreaterThanOrEqual(9);
+    await page.getByRole('button', { name: 'Reset practice', exact: true }).click();
+    await expect(label).toHaveText('');
+    await expect(slot).not.toHaveClass(/ability-active|rush-active|on-cooldown/);
+    // Unused charges expire into a fresh cooldown too.
+    await aim(page, 950, 200);
+    await page.keyboard.press('r');
+    await expect(label).toHaveText('2');
+    await expect(slot).toHaveClass(/on-cooldown/, { timeout: 17000 });
+    await expect(slot).not.toHaveClass(/ability-active|rush-active/);
+    expect(Number(await label.textContent())).toBeGreaterThanOrEqual(9);
   });
 
   test('Ahri guest selection and Charm synchronize with a Singed host', async ({ page, browser }) => {

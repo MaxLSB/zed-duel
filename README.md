@@ -1,6 +1,6 @@
 # Zed / Duel
 
-A minimalist, two-player browser duel with level-18 Zed, Singed, Ahri or LeBlanc, full champion kits and Flash. Zed remains the default. Separate TypeScript modules handle combat, rooms, input, rendering and UI. The match host owns the simulation; guests send input commands. The GitHub Pages build hosts matches in a player’s browser, while local/LAN mode retains the Node server.
+A minimalist, two-player browser duel with level-18 Zed, Singed, Ahri, LeBlanc or Yasuo, full champion kits and Flash. Zed remains the default. Separate TypeScript modules handle combat, rooms, input, rendering and UI. The match host owns the simulation; guests send input commands. The GitHub Pages build hosts matches in a player’s browser, while local/LAN mode retains the Node server.
 
 ## Play on GitHub Pages
 
@@ -15,7 +15,7 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:3000**, create a duel, and share the room code. The server prints its LAN address. On another computer on the same network, open that LAN address and join the room. A `localhost` invite only works on the host computer; replace that hostname with the printed LAN IP when sharing it. Each player chooses **Zed**, **Singed**, **Ahri** or **LeBlanc**, then both click **Ready to duel**. You can change your champion in the waiting room or after each match using the results-screen picker. A post-match change opens a fresh lobby in the same room and clears both ready flags. Choices are locked during a round and kept for rematches.
+Open **http://localhost:3000**, create a duel, and share the room code. The server prints its LAN address. On another computer on the same network, open that LAN address and join the room. A `localhost` invite only works on the host computer; replace that hostname with the printed LAN IP when sharing it. Each player chooses **Zed**, **Singed**, **Ahri**, **LeBlanc** or **Yasuo**, then both click **Ready to duel**. You can change your champion in the waiting room or after each match using the results-screen picker. A post-match change opens a fresh lobby in the same room and clears both ready flags. Choices are locked during a round and kept for rematches.
 
 You can also test with two browser tabs. The second tab can open the first tab's invite URL.
 
@@ -55,7 +55,22 @@ Choose **Ahri** for practice or duels, or open `?practice=1&champion=ahri` (Page
 
 The HUD shows remaining dash charges and their window. Charm interrupts attacks and dashes and blocks movement orders and casts. Roots and Singed's adhesive prevent Spirit Rush. Essence Theft heals 60 HP after three spell casts hit; each cast counts once, and the passive icon shows progress. Reset practice restores the dummy after Charm displaces it.
 
-Q/W/E cooldowns are divided by three. Spirit Rush has a 10s cooldown after its last cast or window expiry, with 1s between casts. See [Ahri combat notes](docs/ahri.md) for sources, values, approximations and validation. The updated Cloudflare relay must be deployed before publishing Ahri on Pages because its champion allowlist validates guest picks.
+Q/W/E cooldowns are divided by three. Spirit Rush has a 10s cooldown after its final dash finishes or its window expires, with 1s between casts. While active, R highlights like Insanity Potion, shows only the remaining charges, and has a shrinking outline tracking the recast window. See [Ahri combat notes](docs/ahri.md) for sources, values, approximations and validation. The updated Cloudflare relay must be deployed before publishing Ahri on Pages because its champion allowlist validates guest picks.
+
+## Yasuo
+
+Choose **Yasuo** for practice or duels, or open `?practice=1&champion=yasuo` (Pages: `/zed-duel/?practice=1&champion=yasuo`). His blue scarf, tied hair and katana use original geometric artwork matching the roster.
+
+| Default key | Ability |
+| --- | --- |
+| Passive | Way of the Wanderer: movement builds Flow; at 100, incoming damage triggers a brief shield |
+| A | Steel Tempest: land two thrusts, then fire a tornado that knocks the opponent airborne |
+| Z | Wind Wall: aim a wall that destroys hostile projectiles and ranged basic attacks |
+| E | Sweeping Blade: hover an in-range opponent to dash through them; each target has a 6s lockout |
+| R | Last Breath: automatically blink to the closest airborne opponent in range, face them, suspend them and finish with a slash |
+| D | Shared Flash |
+
+Cast A during E to turn Steel Tempest into a circular landing slash; an empowered slash knocks up too. Flash during E→A relocates the slash to the Flash destination. Flow appears under the health bar and on the passive slot. The Q slot highlights when the tornado is ready, without stack text. E has a 0.1-second spell cooldown; its separate 6-second target lockout appears as a small ring on the opponent visible only to Yasuo; R requires an airborne opponent. There are no items or critical strikes in this duel. See [Yasuo combat notes](docs/yasuo.md) for sources, exact values and adaptations. Deploy the updated relay before publishing the Pages frontend so it accepts Yasuo guest picks.
 
 ## LeBlanc
 
@@ -85,20 +100,21 @@ Mirror Image grants a brief stealth window and an automatic visual decoy after t
 | R over opponent / R again | Move into range and cast Death Mark / return |
 | D | Flash toward cursor |
 
-Basic attacks have a short wind-up and follow-through: Zed swipes his blades, Singed swings, and Ahri and LeBlanc send a tiny magic bolt with an impact spark. These visuals follow the existing attack timing and also appear in killcam.
+Basic attacks have a short wind-up and follow-through: Zed swipes his blades, Yasuo slashes his katana, Singed swings, and Ahri and LeBlanc send a tiny magic bolt with an impact spark. These visuals follow the existing attack timing and also appear in killcam.
 
 Use the settings button to rebind keys, including for AZERTY keyboards. Click a binding and press a letter, number or Space; Space works for any spell, summoner or Stop. Each action needs a unique key. Hover an ability to see its description and range. The arena fills the available viewport with a compact health and ability HUD. Both players must agree to a rematch. A disconnect cancels the current duel and returns the remaining player to the room.
 
-Spells pressed up to 250 ms before a cast lock, cooldown or recast lock ends are buffered and fire when legal. The latest waiting spell replaces the previous one; its aim is kept from the original input. Ready E and Flash remain immediate. S, movement and attack orders cancel waiting spells. An out-of-range R follows its target until casting range, spending its cooldown only when it casts; S or a new movement order cancels the approach. Flash can bring a pending R into range.
+Spells pressed up to 500 ms before a cast lock, cooldown or recast lock ends are buffered and fire when legal. The latest waiting spell replaces the previous one; its aim is kept from the original input. Ready E and Flash remain immediate. S, movement and attack orders cancel waiting spells. An out-of-range R follows its target until casting range, spending its cooldown only when it casts; S or a new movement order cancels the approach. Flash can bring a pending R into range.
 
 After a kill, both players see the last three seconds at 0.75× speed and 1.22× zoom, with a Skip button. The result compares duration, damage dealt and basic attacks hit, plus stats for the champions picked. Every matchup uses the same comparison table. Champion-specific rows appear for the picked champions, with a dash for the player whose kit does not use that ability. Practice shows your kit's rows alongside the shared stats:
 
 - **Zed:** shurikens hit/missed and accuracy, including shadow projectiles.
 - **Ahri:** outbound/return orb hits and pass accuracy, Charms hit/missed and accuracy, Fox-Fire hits, Spirit Rush bolt hits, and actual Essence Theft healing.
 - **Singed:** poison damage, time the enemy stayed poisoned, Flings landed, adhesive roots, and Insanity Potion uptime.
+- **Yasuo:** Tempests hit/missed and accuracy, knockups, projectiles blocked, dash hits, ultimate hits and damage absorbed by Flow.
 - **LeBlanc:** sigils detonated, Distortion hits, chains hit/missed and accuracy, completed chain roots, Mimic casts hit, and returns used. Normal and mimicked abilities contribute to the same ability counters; each Mimic cast can count as a hit only once, and returns do not count as hits.
 
-Only launched projectiles count as attempts; those that have not hit when the round ends count as misses. Each Ahri orb has two possible hits. Damage is actual HP removed after defenses, excluding overkill; healing excludes overhealing and accounts for healing reduction. Overlapping poison clouds do not multiply poisoned time. Stats and replay history reset each round. Older hosts without the new counters show a dash for unavailable stats.
+Only launched projectiles or completed Steel Tempest thrusts/spins count as attempts; those that have not hit when the round ends count as misses. Each Ahri orb has two possible hits. Damage is actual HP removed after defenses, excluding overkill; healing excludes overhealing and accounts for healing reduction. Overlapping poison clouds do not multiply poisoned time. Stats and replay history reset each round. Older hosts without the new counters show a dash for unavailable stats.
 
 ## Structure
 

@@ -80,6 +80,26 @@ function championMetrics(p: PlayerState): Metric[] {
         },
       ];
     }
+    case 'yasuo': {
+      const y = s.yasuo;
+      return [
+        { label: 'Tempests hit / missed', value: hitMiss(y?.tempestsHit, y?.tempestsCast) },
+        { label: 'Tempest accuracy', value: accuracy(y?.tempestsHit, y?.tempestsCast) },
+        { label: 'Knockups', value: count(y?.knockups) },
+        {
+          label: 'Projectiles blocked',
+          value: count(y?.projectilesBlocked),
+          hint: 'Includes ranged basic attacks stopped by Wind Wall.',
+        },
+        { label: 'Sweeping Blade hits', value: count(y?.dashesHit) },
+        { label: 'Last Breath hits', value: count(y?.ultimatesHit) },
+        {
+          label: 'Shield absorbed',
+          value: count(y?.shieldAbsorbed),
+          hint: 'Damage absorbed after resistances.',
+        },
+      ];
+    }
     case 'leblanc': {
       const l = s.leblanc;
       return [

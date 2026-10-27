@@ -154,7 +154,7 @@ test('Spirit Rush is a finite dash, fires a bolt, allows only three casts and en
   advance(game, 1.01);
   assert.equal(p.ahri!.rushCharges, 0);
   assert.equal(cast(game, 'r'), false);
-  advance(game, 9.1);
+  advance(game, 9.5);
   assert.ok(cast(game, 'r'));
   assert.equal(p.ahri!.rushCharges, 2);
 });
@@ -292,4 +292,30 @@ test('Ahri mirror resets all missiles, dashes, crowd control and stats; summary 
   cast(game, 'w');
   advance(game, 1);
   assert.equal(game.state.players[0].ahri!.essenceHits, 1);
+});
+
+test('Spirit Rush starts a full ten-second cooldown after the final dash lands or is interrupted', () => {
+  for (const interrupted of [false, true]) {
+    const game = duel(1400),
+      p = game.state.players[0];
+    cast(game, 'r', 0, { x: 700, y: 200 });
+    advance(game, 1.1);
+    cast(game, 'r', 0, { x: 700, y: 700 });
+    advance(game, 1.1);
+    const started = game.state.time;
+    cast(game, 'r', 0, { x: 700, y: 200 });
+    assert.equal(p.ahri!.rushCharges, 0);
+    assert.ok(p.cooldowns.r > started + 10);
+    advance(game, 0.1);
+    assert.ok(p.ahri!.dash);
+    assert.ok(p.ahri!.rushUntil > game.state.time);
+    if (interrupted) p.ahri!.dash = null;
+    while (p.ahri!.dash) game.step();
+    if (interrupted) game.step();
+    assert.ok(Math.abs(p.cooldowns.r - game.state.time - 10) < STEP);
+    advance(game, 9.4);
+    assert.equal(cast(game, 'r'), false);
+    advance(game, 0.7);
+    assert.ok(cast(game, 'r'));
+  }
 });
