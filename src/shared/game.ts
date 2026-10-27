@@ -1,4 +1,5 @@
-import { championStats, potionBonus } from './champions';
+import { EzrealKit } from './ezreal';
+import { attackSpeed, championStats, potionBonus } from './champions';
 import { SINGED_SPELLS } from './singed-balance';
 import { SingedKit } from './singed';
 import { AhriKit } from './ahri';
@@ -50,6 +51,14 @@ export class Game {
       p.yasuo.ultimateUntil = 0;
     }
   };
+
+  private ezreal = new EzrealKit({
+    state: () => this.state,
+    schedule: (delay, run) => this.schedule(delay, run),
+    damage: (owner, target, raw, type) => this.damage(owner, target, raw, type),
+    effect: (kind, pos, owner, from) => this.effect(kind, pos, owner, undefined, from),
+    grounded: (p) => this.singed.grounded(p),
+  });
 
   private yasuo = new YasuoKit({
     state: () => this.state,
@@ -114,6 +123,7 @@ export class Game {
       zones: [],
       projectiles: [],
       ahriMissiles: [],
+      ezrealMissiles: [],
       leblancMissiles: [],
       chains: [],
       windWalls: [],
@@ -124,6 +134,7 @@ export class Game {
   }
 
   start(countdown = 3) {
+    this.ezreal.reset();
     this.yasuo.reset();
     this.ahri.reset();
     this.leblanc.reset();
@@ -138,6 +149,7 @@ export class Game {
   }
 
   disconnect() {
+    this.ezreal.reset();
     this.yasuo.reset();
     this.ahri.reset();
     this.leblanc.reset();
@@ -201,6 +213,7 @@ export class Game {
     this.singed.update(dt);
     this.ahri.update(dt);
     this.leblanc.update(dt);
+    this.ezreal.update(dt);
     this.updateProjectiles(dt);
     for (const p of s.players) this.updateMark(p);
     s.effects = s.effects.filter((effect) => s.time - effect.at < 0.8);
@@ -313,7 +326,7 @@ export class Game {
     if (p.leblanc) p.leblanc.invisibleUntil = 0;
     const stats = championStats(p.champion);
     const enemyStats = championStats(enemy.champion);
-    const delay = stats.windup / stats.attackSpeed;
+    const delay = stats.windup / attackSpeed(p, this.state.time);
     const stamp = this.state.time + delay;
     p.windupUntil = stamp;
     p.facing = Math.atan2(enemy.pos.y - p.pos.y, enemy.pos.x - p.pos.x);
@@ -328,12 +341,13 @@ export class Game {
         distance(p.pos, enemy.pos) > stats.attackRange + stats.radius + enemyStats.radius + 25
       )
         return;
-      p.attackAt = this.state.time + (1 - stats.windup) / stats.attackSpeed;
+      p.attackAt = this.state.time + (1 - stats.windup) / attackSpeed(p, this.state.time);
       const passive =
         p.champion === 'zed' &&
         enemy.hp < enemyStats.hp * PASSIVE.threshold &&
         p.passiveAt <= this.state.time;
       if (stats.attackRange > 300 && blockedByWindWall(this.state, p.id, p.pos, enemy.pos, 12)) return;
+      if (p.ezreal) this.ezreal.detonate(p, enemy);
       this.damage(p.id, enemy, stats.ad, 'physical');
       p.stats.attacksHit++;
       this.effect('attack', enemy.pos, p.id, undefined, p.pos);
@@ -371,6 +385,7 @@ export class Game {
     const displacement =
       key === 'd' ||
       (p.champion === 'ahri' && key === 'r') ||
+      (p.champion === 'ezreal' && key === 'e') ||
       (!!p.yasuo && (key === 'e' || key === 'r')) ||
       (!!p.leblanc && (!!this.leblanc.returnPoint(p, key) || this.leblanc.spell(p, key) === 'w')) ||
       (p.champion === 'zed' && (key === 'r' || (key === 'w' && !!shadow)));
@@ -419,6 +434,10 @@ export class Game {
         pad ? pad.readyAt : p.cooldowns[key],
         key === 'd' ? 0 : p.castUntil,
       );
+    }
+    if (p.ezreal) {
+      // Flash stays immediate throughout Trueshot Barrage's windup and does not cancel its cast.
+      return Math.max(now, p.untargetableUntil, p.cooldowns[key], key === 'd' ? 0 : p.castUntil);
     }
     if (p.ahri) {
       if (p.ahri.dash && key !== 'w') return null;
@@ -526,6 +545,7 @@ export class Game {
     }
     if (targeted) this.cancelApproach(p);
     if (p.leblanc && key !== 'd' && !this.leblanc.returnPoint(p, key)) p.leblanc.invisibleUntil = 0;
+    if (p.ezreal && key !== 'd') return this.ezreal.cast(p, key, point);
     if (p.yasuo && key !== 'd') return this.yasuo.cast(p, key, point);
     if (p.leblanc && key !== 'd') return this.leblanc.cast(p, key, point);
     if (p.champion === 'singed' && key !== 'd') return this.singed.cast(p, key, point);
@@ -536,11 +556,11 @@ export class Game {
     if (key === 'e') this.slash(p);
     if (key === 'r') this.ultimate(p, enemy);
     if (key === 'd') {
-      this.effect('blink', p.pos, p.id);
+      const from = { ...p.pos };
       p.pos = bounded(towards(p.pos, point, SPELLS.d.range));
       p.destination = null;
       p.windupUntil = 0;
-      this.effect('blink', p.pos, p.id);
+      this.effect('flash', p.pos, p.id, undefined, from);
       // Flash ends Sweeping Blade and carries its queued circular Q to the blink destination.
       this.yasuo.finishDash(p);
     }

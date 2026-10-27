@@ -5,7 +5,22 @@ export interface Vec {
   y: number;
 }
 export type PlayerId = 0 | 1;
-export type ChampionId = 'zed' | 'singed' | 'ahri' | 'leblanc' | 'yasuo';
+export type ChampionId = 'zed' | 'singed' | 'ahri' | 'leblanc' | 'yasuo' | 'ezreal';
+export interface EzrealState {
+  stacks: number;
+  stacksUntil: number;
+  casting: { key: 'q' | 'w' | 'e' | 'r'; until: number; origin: Vec; facing: number } | null;
+}
+export interface EzrealMissile {
+  id: number;
+  owner: PlayerId;
+  kind: 'q' | 'w' | 'e' | 'r';
+  pos: Vec;
+  velocity: Vec;
+  remaining: number;
+  hit: boolean;
+  expires: number;
+}
 export interface YasuoState {
   flow: number;
   shield: number;
@@ -191,6 +206,8 @@ export interface PlayerState {
   ahri: AhriState | null;
   leblanc: LeblancState | null;
   yasuo: YasuoState | null;
+  ezreal: EzrealState | null;
+  flux: { owner: PlayerId; expires: number } | null;
   sigils: Sigil[];
   charm: { owner: PlayerId; until: number } | null;
   poison: { owner: PlayerId; until: number; tickAt: number } | null;
@@ -230,6 +247,8 @@ export interface Effect {
   kind:
     | 'slash'
     | 'blink'
+    | 'flash'
+    | 'arcane-shift'
     | 'hit'
     | 'passive'
     | 'attack'
@@ -239,12 +258,13 @@ export interface Effect {
     | 'distortion'
     | 'tempest'
     | 'wind-slash'
-    | 'last-breath';
+    | 'last-breath'
+    | 'ezreal-flux';
   pos: Vec;
   owner: PlayerId;
   at: number;
   amount?: number;
-  // Basic attacks capture their origin; Fling's existing impact has no origin.
+  // Attacks and teleports capture their origin; Fling's existing impact has no origin.
   from?: Vec;
 }
 export interface GameState {
@@ -254,6 +274,7 @@ export interface GameState {
   players: [PlayerState, PlayerState];
   projectiles: Projectile[];
   ahriMissiles: AhriMissile[];
+  ezrealMissiles: EzrealMissile[];
   leblancMissiles: LeblancMissile[];
   chains: Chain[];
   windWalls: WindWall[];

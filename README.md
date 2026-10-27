@@ -1,6 +1,6 @@
 # Zed / Duel
 
-A minimalist, two-player browser duel with level-18 Zed, Singed, Ahri, LeBlanc or Yasuo, full champion kits and Flash. Zed remains the default. Separate TypeScript modules handle combat, rooms, input, rendering and UI. The match host owns the simulation; guests send input commands. The GitHub Pages build hosts matches in a player’s browser, while local/LAN mode retains the Node server.
+A minimalist, two-player browser duel with level-18 Zed, Singed, Ahri, LeBlanc, Yasuo or Ezreal, full champion kits and Flash. Zed remains the default. Separate TypeScript modules handle combat, rooms, input, rendering and UI. The match host owns the simulation; guests send input commands. The GitHub Pages build hosts matches in a player’s browser, while local/LAN mode retains the Node server.
 
 ## Play on GitHub Pages
 
@@ -15,7 +15,7 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:3000**, create a duel, and share the room code. The server prints its LAN address. On another computer on the same network, open that LAN address and join the room. A `localhost` invite only works on the host computer; replace that hostname with the printed LAN IP when sharing it. Each player chooses **Zed**, **Singed**, **Ahri**, **LeBlanc** or **Yasuo**, then both click **Ready to duel**. You can change your champion in the waiting room or after each match using the results-screen picker. A post-match change opens a fresh lobby in the same room and clears both ready flags. Choices are locked during a round and kept for rematches.
+Open **http://localhost:3000**, create a duel, and share the room code. The server prints its LAN address. On another computer on the same network, open that LAN address and join the room. A `localhost` invite only works on the host computer; replace that hostname with the printed LAN IP when sharing it. Each player chooses **Zed**, **Singed**, **Ahri**, **LeBlanc**, **Yasuo** or **Ezreal**, then both click **Ready to duel**. You can change your champion in the waiting room or after each match using the results-screen picker. A post-match change opens a fresh lobby in the same room and clears both ready flags. Choices are locked during a round and kept for rematches.
 
 You can also test with two browser tabs. The second tab can open the first tab's invite URL.
 
@@ -86,6 +86,21 @@ Choose **LeBlanc** for practice or duels, or open `?practice=1&champion=leblanc`
 
 Mirror Image grants a brief stealth window and an automatic visual decoy after taking damage at low health. The decoy is harmless and cannot be controlled or targeted. Both dash origins show return timers, and the HUD identifies the spell ready for Mimic. Q/W/E cooldowns are divided by three; passive/R/Flash use 10 seconds. See [LeBlanc combat notes](docs/leblanc.md) for sources, timing, simplifications and checks. Deploy the updated relay before publishing the Pages frontend so guest LeBlanc picks are accepted.
 
+## Ezreal
+
+Choose **Ezreal** in the lobby or open `?practice=1&champion=ezreal` (Pages: `/zed-duel/?practice=1&champion=ezreal`). His blond hair, explorer's jacket and glowing gauntlet use the roster's original geometric style.
+
+| Default key | Ability |
+| --- | --- |
+| Passive | Rising Spell Force: damaging spell hits build up to five attack-speed stacks for six seconds |
+| A | Mystic Shot: a physical-damage skillshot; hits reduce Q/W/E/R cooldowns by 0.5s |
+| Z | Essence Flux: mark the opponent, then detonate with an attack or damaging spell |
+| E | Arcane Shift: blink toward the cursor and send a homing bolt at a nearby opponent |
+| R | Trueshot Barrage: wind up for one second, then fire a wide arc across the arena |
+| D | Shared Flash |
+
+The passive slot shows stacks; arcs around Ezreal and a shrinking bar show their remaining duration. Flux has a gold ring until detonated or expired. Q/W/E cooldowns are divided by three, R/Flash use ten seconds, and there are no resource costs. Wind Wall blocks his projectiles and ranged attacks; roots and grounding prevent E and Flash. See [Ezreal combat notes](docs/ezreal.md) for values, timing and duel adaptations. Deploy the updated Cloudflare relay before publishing the frontend so guest Ezreal picks are accepted.
+
 ## Controls
 
 | Input | Action |
@@ -100,7 +115,7 @@ Mirror Image grants a brief stealth window and an automatic visual decoy after t
 | R over opponent / R again | Move into range and cast Death Mark / return |
 | D | Flash toward cursor |
 
-Basic attacks have a short wind-up and follow-through: Zed swipes his blades, Yasuo slashes his katana, Singed swings, and Ahri and LeBlanc send a tiny magic bolt with an impact spark. These visuals follow the existing attack timing and also appear in killcam.
+Basic attacks have a short wind-up and follow-through: Zed swipes his blades, Yasuo slashes his katana, Singed swings, and Ahri, LeBlanc and Ezreal send a tiny magic bolt with an impact spark. These visuals follow the existing attack timing and also appear in killcam.
 
 Use the settings button to rebind keys, including for AZERTY keyboards. Click a binding and press a letter, number or Space; Space works for any spell, summoner or Stop. Each action needs a unique key. Hover an ability to see its description and range. The arena fills the available viewport with a compact health and ability HUD. Both players must agree to a rematch. A disconnect cancels the current duel and returns the remaining player to the room.
 
@@ -127,6 +142,8 @@ src/shared/ahri-balance.ts  Ahri stats and spell constants
 src/shared/ahri.ts          Orb, flames, Charm and Spirit Rush simulation
 src/shared/leblanc-balance.ts  LeBlanc stats and spell constants
 src/shared/leblanc.ts       Sigils, Distortion, Chains, Mimic and Mirror Image
+src/shared/ezreal-balance.ts   Ezreal stats and spell constants
+src/shared/ezreal.ts       Mystic Shot, Flux, Shift, Barrage and Rising Spell Force
 src/shared/game.ts        Fixed-step combat simulation
 src/shared/spell-buffer.ts  Short, cancellable spell input buffer
 src/shared/player.ts      Player initialization
@@ -142,6 +159,7 @@ src/client/ultimate-effects.ts  Ultimate smoke, dash, marks and detonation
 src/client/singed-effects.ts    Singed body, clouds, adhesive and potion visuals
 src/client/ahri-effects.ts      Ahri body, missiles and Charm visuals
 src/client/leblanc-effects.ts   LeBlanc body, decoy, returns, marks and chains
+src/client/ezreal-effects.ts    Ezreal body, bolts, Flux and ultimate visuals
 src/client/killcam.ts           Bounded snapshot history and replay timeline
 src/client/match-summary.ts     Compact post-match comparison
 src/client/main.ts        Lobby, match HUD and settings

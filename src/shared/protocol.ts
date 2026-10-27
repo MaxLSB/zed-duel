@@ -3,7 +3,12 @@ import type { ChampionId, ClientMessage, Input, Vec } from './types';
 
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
 export const isChampion = (value: unknown): value is ChampionId =>
-  value === 'zed' || value === 'singed' || value === 'ahri' || value === 'leblanc' || value === 'yasuo';
+  value === 'zed' ||
+  value === 'singed' ||
+  value === 'ahri' ||
+  value === 'leblanc' ||
+  value === 'yasuo' ||
+  value === 'ezreal';
 const point = (value: unknown): value is Vec =>
   object(value) &&
   typeof value.x === 'number' &&
