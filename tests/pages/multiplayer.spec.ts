@@ -110,7 +110,11 @@ test('Pages completes a relayed duel with WebRTC disabled, rejects a third playe
     await expect(page.locator('[data-spell=q]')).toHaveAttribute('aria-pressed', 'true');
     await aim(guest, 1450, 700);
     await guest.keyboard.press('r');
-    await expect(guest.locator('[data-spell=r]')).toHaveClass(/recast/);
+    const spiritRush = guest.locator('[data-spell=r]');
+    await expect(spiritRush).toHaveClass(/ability-active/);
+    await expect(spiritRush).toHaveClass(/rush-active/);
+    await expect(spiritRush).not.toHaveClass(/on-cooldown/);
+    await expect(spiritRush.locator('.cooldown')).toHaveText('2');
     await page.getByRole('button', { name: 'Leave room', exact: true }).click();
     await expect(page).toHaveURL('http://127.0.0.1:3180/zed-duel/');
     await expect(guest.getByRole('button', { name: 'Create a duel' })).toBeVisible();
