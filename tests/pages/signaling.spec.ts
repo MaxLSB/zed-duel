@@ -1,9 +1,14 @@
 import { test, expect } from '@playwright/test';
 import WebSocket from 'ws';
 import type { SignalMessage } from '../../src/shared/signaling';
+import { checkRelay } from '../../scripts/check-relay';
 
 const service = 'http://127.0.0.1:3190';
 const origin = 'http://127.0.0.1:3180';
+
+test('relay accepts every champion for guest joins and lobby selection', async () => {
+  await checkRelay(service, origin);
+});
 
 function connect(code: string, token?: string) {
   return new Promise<{ socket: WebSocket; message: { type: string; player?: number; message?: string } }>(
