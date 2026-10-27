@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { GameState } from '../src/shared/types';
+import { YASUO_SPELLS } from '../src/shared/yasuo-balance';
+import { championStats } from '../src/shared/champions';
 
 async function aim(page: Page, x: number, y: number) {
   const box = (await page.locator('#arena').boundingBox())!;
@@ -11,6 +13,68 @@ async function aim(page: Page, x: number, y: number) {
 }
 
 export function yasuoBrowserTests(base: string) {
+  test('Yasuo guest carries E-Q damage and a fresh stack into Last Breath after a tornado', async ({
+    page,
+    browser,
+  }) => {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+    const guest = await context.newPage();
+    let state: GameState | undefined;
+    const errors: string[] = [];
+    for (const view of [page, guest]) view.on('pageerror', (error) => errors.push(error.message));
+    guest.on('websocket', (socket) =>
+      socket.on('framereceived', ({ payload }) => {
+        const packet = JSON.parse(String(payload));
+        const message = packet.type === 'relay' ? packet.data : packet;
+        if (message?.type === 'state') state = message.room.game;
+      }),
+    );
+    try {
+      await page.goto(base);
+      await page.getByRole('button', { name: 'Create a duel' }).click();
+      await expect(page.locator('.room-code')).toBeVisible();
+      await guest.goto(`${page.url()}&champion=yasuo`);
+      await expect(guest.getByRole('heading', { name: 'Ready to duel' })).toBeVisible();
+      await page.getByRole('button', { name: 'Ready to duel' }).click();
+      await guest.getByRole('button', { name: 'Ready to duel' }).click();
+      await expect(guest.locator('#overlay')).toHaveClass(/hidden/, { timeout: 6000 });
+      const target = state!.players[0].pos;
+      await aim(guest, target.x + 350, target.y);
+      await guest.mouse.down({ button: 'right' });
+      await guest.mouse.up({ button: 'right' });
+      await expect.poll(() => state!.players[1].pos.x).toBeLessThan(target.x + 355);
+      await aim(guest, target.x, target.y);
+      for (const hits of [1, 2]) {
+        await guest.keyboard.press('a');
+        await expect.poll(() => state?.players[1].stats.yasuo?.tempestsHit).toBe(hits);
+        await expect.poll(() => state!.players[1].cooldowns.q <= state!.time).toBe(true);
+      }
+      await guest.keyboard.press('a');
+      await expect.poll(() => !!state?.players[0].airborne, { intervals: [20] }).toBe(true);
+      await guest.keyboard.press('e');
+      await guest.keyboard.press('a');
+      await guest.keyboard.press('r');
+      await expect.poll(() => state?.players[1].stats.yasuo?.ultimatesHit).toBe(1);
+      const player = state!.players[1];
+      expect(player.stats.yasuo!.tempestsCast).toBe(4);
+      expect(player.stats.yasuo!.tempestsHit).toBe(4);
+      expect(player.yasuo!.stacks).toBe(1);
+      expect(player.yasuo!.dash).toBeNull();
+      const defense = championStats('zed');
+      const expectedDamage =
+        ((4 * YASUO_SPELLS.q.damage + YASUO_SPELLS.r.damage) * 100) / (100 + defense.armor) +
+        (player.stats.yasuo!.dashesHit * YASUO_SPELLS.e.damage * 100) / (100 + defense.mr);
+      expect(player.stats.damageDealt).toBeCloseTo(expectedDamage, 5);
+      for (const view of [page, guest]) {
+        await expect(view.locator('#status-1')).not.toHaveText('LAST BREATH');
+        await expect(view.locator('#status-0')).not.toHaveText('AIRBORNE');
+      }
+      expect(errors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+
   test('Yasuo practice builds tornado, uses Last Breath and E-Q, resets and reloads', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));

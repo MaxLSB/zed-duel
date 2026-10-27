@@ -426,6 +426,73 @@ test('Charm cancels Yasuo Q windup and E dash; root cancels a queued dash slash'
   assert.equal(p.stats.damageDealt, 0);
 });
 
+test('tornado into E-Q-R carries one slash into Last Breath and retains its new Q stack', () => {
+  for (const dashTravel of [0, 0.3]) {
+    const game = duel(),
+      [p, enemy] = game.state.players;
+    readyTornado(game);
+    cast(game, 'q');
+    advance(game, 0.45);
+    assert.ok(enemy.airborne);
+    const before = p.stats.damageDealt;
+    const qReadyAt = p.cooldowns.q;
+    assert.ok(qReadyAt > game.state.time);
+    assert.ok(cast(game, 'e'));
+    const lockout = p.yasuo!.dashTargetUntil;
+    assert.ok(cast(game, 'q'));
+    assert.equal(p.yasuo!.dash!.slash, 'normal');
+    near(p.cooldowns.q, qReadyAt + S.q.cooldown);
+    assert.equal(cast(game, 'q'), false);
+    advance(game, dashTravel);
+    const eDamage = dashTravel ? (S.e.damage * 100) / (100 + championStats('zed').mr) : 0;
+    assert.ok(game.input(0, { action: 'cast', spell: 'r', point: { x: 2200, y: 100 } }));
+    near(p.stats.damageDealt - before, eDamage + physical(S.q.damage));
+    assert.equal(p.yasuo!.dash, null);
+    assert.equal(p.yasuo!.stacks, 1);
+    assert.equal(p.yasuo!.dashTargetUntil, lockout);
+    assert.equal(p.stats.yasuo!.tempestsCast, 4);
+    assert.equal(p.stats.yasuo!.tempestsHit, 4);
+    assert.equal(p.stats.yasuo!.dashesHit, dashTravel ? 1 : 0);
+    const slash = game.state.effects.filter((effect) => effect.kind === 'wind-slash').at(-1);
+    assert.deepEqual(slash?.pos, p.pos);
+    near(p.facing, Math.atan2(enemy.pos.y - p.pos.y, enemy.pos.x - p.pos.x));
+    advance(game, S.r.duration + 0.1);
+    near(p.stats.damageDealt - before, eDamage + physical(S.q.damage + S.r.damage));
+    assert.equal(p.stats.yasuo!.tempestsHit, 4);
+    assert.equal(p.stats.yasuo!.ultimatesHit, 1);
+    assert.equal(p.yasuo!.stacks, 1);
+    assert.equal(enemy.airborne, null);
+  }
+});
+
+test('E only borrows Q cooldown within its half-second window, without shortening the next cooldown', () => {
+  for (const remaining of [0, 0.49, 0.5, 0.51]) {
+    const game = duel(),
+      [p] = game.state.players;
+    p.cooldowns.q = remaining;
+    cast(game, 'e');
+    // Starting E too early must not open the early-Q window partway through the dash.
+    advance(game, 0.05);
+    assert.ok(cast(game, 'q'));
+    assert.equal(p.yasuo!.dash!.slash, remaining <= 0.5 ? 'normal' : null);
+    if (remaining <= 0.5) near(p.cooldowns.q, Math.max(game.state.time, remaining) + S.q.cooldown);
+    else near(p.cooldowns.q, remaining);
+  }
+});
+
+test('a rejected Last Breath leaves the queued E-Q intact', () => {
+  const game = duel(),
+    [p] = game.state.players;
+  cast(game, 'e');
+  cast(game, 'q');
+  assert.equal(cast(game, 'r'), false);
+  assert.equal(p.cooldowns.r, 0);
+  assert.equal(p.yasuo!.dash!.slash, 'normal');
+  advance(game, 0.6);
+  assert.equal(p.stats.yasuo!.tempestsHit, 1);
+  assert.equal(p.yasuo!.stacks, 1);
+});
+
 test('Last Breath requires airborne target, suspends it, resets stacks, fills Flow and deals delayed damage', () => {
   const game = duel(),
     [p, enemy] = game.state.players;

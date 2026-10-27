@@ -40,6 +40,7 @@ export const YASUO_SPELLS = {
   e: {
     name: 'Sweeping Blade',
     cooldown: 0.1,
+    qBuffer: 0.5,
     range: 475,
     speed: 750 + 0.6 * YASUO_STATS.speed,
     damage: 130,
