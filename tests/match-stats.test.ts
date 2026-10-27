@@ -211,7 +211,10 @@ test('every matchup and perspective shows only the picked kits, including mirror
           assert.ok(!html.includes(uniqueLabels[other]));
         assert.ok(!/NaN|undefined|Infinity/.test(html));
         assert.equal((html.match(/aria-label="Match statistics"/g) ?? []).length, 1);
-        assert.equal(html.includes('class="champion-recaps"'), a !== b);
+        assert.equal((html.match(/<table\b/g) ?? []).length, 1);
+        assert.ok(!html.includes('champion-recap'));
+        assert.equal((html.match(/Damage dealt<\/th>/g) ?? []).length, 1);
+        assert.equal((html.match(/Basic attacks hit<\/th>/g) ?? []).length, 1);
       }
     }
   const practice = matchSummary(duel('leblanc').state, 0, true);
@@ -230,6 +233,24 @@ test('every matchup and perspective shows only the picked kits, including mirror
   Object.assign(malformed.state.players[1].stats.singed!, { poisonSeconds: 'invalid' });
   const safe = matchSummary(malformed.state, 0, false);
   assert.ok(!/NaN|undefined|Infinity|<img|<script>|invalid/.test(safe));
+});
+
+test('mixed recap keeps kit and shared values in the correct comparison columns', () => {
+  const game = duel('leblanc', 500, 'ahri');
+  const [leblanc, ahri] = game.state.players;
+  leblanc.stats.leblanc!.sigilsDetonated = 4;
+  ahri.stats.ahri!.charmsThrown = 5;
+  ahri.stats.ahri!.charmsHit = 3;
+  leblanc.stats.damageDealt = 1200;
+  ahri.stats.damageDealt = 750;
+  const host = matchSummary(game.state, 0, false);
+  assert.match(host, /Sigils detonated<\/th><td>4<\/td><td>—/);
+  assert.match(host, /Charms hit \/ missed<\/th><td>—<\/td><td>3 \/ 2/);
+  assert.match(host, /Damage dealt<\/th><td>1,200<\/td><td>750/);
+  const guest = matchSummary(game.state, 1, false);
+  assert.match(guest, /Sigils detonated<\/th><td>—<\/td><td>4/);
+  assert.match(guest, /Charms hit \/ missed<\/th><td>3 \/ 2<\/td><td>—/);
+  assert.match(guest, /Damage dealt<\/th><td>750<\/td><td>1,200/);
 });
 
 test('browser host snapshots include champion stats and reset them for the next round', () => {

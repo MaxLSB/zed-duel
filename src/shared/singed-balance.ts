@@ -16,7 +16,7 @@ export const SINGED_STATS = {
 
 export const SINGED_PASSIVE = {
   name: 'Noxious Slipstream',
-  range: 325,
+  range: 475,
   speed: 0.25,
   duration: 2,
   cooldown: 10,

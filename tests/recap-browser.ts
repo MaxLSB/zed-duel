@@ -9,12 +9,12 @@ async function aim(page: Page, x: number, y: number) {
     box.y + (box.height - 1400 * scale) / 2 + y * scale,
   );
 }
-function value(section: Locator, label: string) {
+function value(section: Locator, label: string, column = 0) {
   return section
     .getByRole('row')
     .filter({ has: section.page().getByRole('rowheader', { name: label, exact: true }) })
     .getByRole('cell')
-    .first();
+    .nth(column);
 }
 export function recapBrowserTests(base: string) {
   test('mixed duel recap shows both champion kits, real counters, mobile layout and a clean rematch', async ({
@@ -72,26 +72,23 @@ export function recapBrowserTests(base: string) {
         await expect(view.locator('#killcam-bar')).toBeVisible();
         await view.getByRole('button', { name: 'Skip', exact: true }).click();
         await expect(view.getByRole('table', { name: 'Match statistics', exact: true })).toBeVisible();
+        await expect(view.locator('.result table')).toHaveCount(1);
+        await expect(view.locator('.champion-recap')).toHaveCount(0);
         await expect(view.getByRole('rowheader', { name: 'Shurikens hit', exact: true })).toHaveCount(0);
       }
-      const you = page.getByRole('region', { name: 'You · LeBlanc statistics', exact: true });
-      const enemy = page.getByRole('region', { name: 'Opponent · Ahri statistics', exact: true });
+      const table = page.getByRole('table', { name: 'Match statistics', exact: true });
+      const guestTable = guest.getByRole('table', { name: 'Match statistics', exact: true });
       const lb = final.players[0].stats.leblanc!;
       expect(lb.chainsHit).toBeGreaterThan(0);
-      await expect(value(you, 'Sigils detonated')).toHaveText(String(lb.sigilsDetonated));
-      await expect(value(you, 'Chains hit / missed')).toHaveText(
+      await expect(value(table, 'Sigils detonated')).toHaveText(String(lb.sigilsDetonated));
+      await expect(value(table, 'Sigils detonated', 1)).toHaveText('—');
+      await expect(value(table, 'Chains hit / missed')).toHaveText(
         `${lb.chainsHit} / ${lb.chainsThrown - lb.chainsHit}`,
       );
-      await expect(value(enemy, 'Charms hit / missed')).toHaveText('1 / 0');
-      await expect(
-        value(guest.getByRole('region', { name: 'You · Ahri statistics', exact: true }), 'Charm accuracy'),
-      ).toHaveText('100%');
-      await expect(
-        value(
-          guest.getByRole('region', { name: 'Opponent · LeBlanc statistics', exact: true }),
-          'Sigils detonated',
-        ),
-      ).toHaveText(String(lb.sigilsDetonated));
+      await expect(value(table, 'Charms hit / missed')).toHaveText('—');
+      await expect(value(table, 'Charms hit / missed', 1)).toHaveText('1 / 0');
+      await expect(value(guestTable, 'Charm accuracy')).toHaveText('100%');
+      await expect(value(guestTable, 'Sigils detonated', 1)).toHaveText(String(lb.sigilsDetonated));
       await page.screenshot({ path: `test-results/recap-${base === '/' ? 'node' : 'pages'}.png` });
       await page.setViewportSize({ width: 390, height: 844 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
