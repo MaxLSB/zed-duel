@@ -53,13 +53,13 @@ test('skip, resets and disconnects discard playback without replaying old rounds
   assert.equal(replay.sample(4000), null);
 });
 
-test('match summary uses each player perspective and handles zero shots', () => {
+test('match summary uses each player perspective and handles zero damage', () => {
   const state = snapshot(65, 'finished');
   state.players[0].stats = { shurikensThrown: 5, shurikensHit: 3, attacksHit: 2, damageDealt: 500.4 };
   const html = matchSummary(state, 0, false);
   assert.match(html, /01:05/);
-  assert.match(html, /Shurikens hit<\/th><td>3<\/td><td>0/);
-  assert.match(html, /Shurikens missed<\/th><td>2<\/td><td>0/);
-  assert.match(html, /Accuracy<\/th><td>60%<\/td><td>—/);
-  assert.match(matchSummary(state, 1, false), /Shurikens hit<\/th><td>0<\/td><td>3/);
+  assert.match(html, /Damage dealt<\/th><td>500<\/td><td>0/);
+  assert.match(html, /Damage taken<\/th><td>0<\/td><td>500/);
+  assert.match(html, /Basic attacks hit<\/th><td>2<\/td><td>0/);
+  assert.match(matchSummary(state, 1, false), /Damage dealt<\/th><td>0<\/td><td>500/);
 });

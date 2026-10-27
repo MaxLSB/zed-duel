@@ -821,13 +821,6 @@ dialog p {
   gap: 8px;
 }
 
-.recap-champion {
-  display: block;
-  margin-top: 4px;
-  color: #9ba69c;
-  font-size: 10px;
-}
-
 /* Remaining Spirit Rush window travels around the spell box clockwise. */
 .rush-active {
   border-color: #bad87935;
