@@ -16,12 +16,14 @@ import type { GameState, PlayerId, PlayerState, Vec } from '../shared/types';
 import type { Controls } from './input';
 import { Killcam } from './killcam';
 import { UltimateEffects } from './ultimate-effects';
+import { TeleportEffects } from './teleport-effects';
 
 const COLORS = ['#90c7b6', '#e1a087'];
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private ultimateEffects: UltimateEffects;
+  private teleportEffects: TeleportEffects;
   private singedEffects: SingedEffects;
   private ezrealEffects: EzrealEffects;
   private ahriEffects: AhriEffects;
@@ -45,6 +47,7 @@ export class Renderer {
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
     this.ultimateEffects = new UltimateEffects(this.ctx);
+    this.teleportEffects = new TeleportEffects(this.ctx);
     this.singedEffects = new SingedEffects(this.ctx);
     this.ezrealEffects = new EzrealEffects(this.ctx);
     this.ahriEffects = new AhriEffects(this.ctx);
@@ -231,6 +234,7 @@ export class Renderer {
       for (const effect of s.effects) {
         if (['distortion', 'tempest', 'wind-slash', 'last-breath', 'ezreal-flux'].includes(effect.kind))
           continue;
+        if (this.teleportEffects.effect(effect, now)) continue;
         if (this.attackEffects.impact(effect, s.players[effect.owner], now, COLORS[effect.owner])) continue;
         if (this.ultimateEffects.effect(effect, now)) continue;
         const age = now - effect.at;

@@ -9,7 +9,7 @@ export type ChampionId = 'zed' | 'singed' | 'ahri' | 'leblanc' | 'yasuo' | 'ezre
 export interface EzrealState {
   stacks: number;
   stacksUntil: number;
-  casting: { key: 'q' | 'w' | 'e' | 'r'; until: number } | null;
+  casting: { key: 'q' | 'w' | 'e' | 'r'; until: number; origin: Vec; facing: number } | null;
 }
 export interface EzrealMissile {
   id: number;
@@ -247,6 +247,8 @@ export interface Effect {
   kind:
     | 'slash'
     | 'blink'
+    | 'flash'
+    | 'arcane-shift'
     | 'hit'
     | 'passive'
     | 'attack'
@@ -262,7 +264,7 @@ export interface Effect {
   owner: PlayerId;
   at: number;
   amount?: number;
-  // Basic attacks capture their origin; Fling's existing impact has no origin.
+  // Attacks and teleports capture their origin; Fling's existing impact has no origin.
   from?: Vec;
 }
 export interface GameState {

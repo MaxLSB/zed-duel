@@ -10,7 +10,7 @@ interface Combat {
   state: () => GameState;
   schedule: (delay: number, run: () => void) => void;
   damage: (owner: PlayerId, target: PlayerState, raw: number, type: 'magic' | 'physical') => void;
-  effect: (kind: Effect['kind'], pos: Vec, owner: PlayerId) => void;
+  effect: (kind: Effect['kind'], pos: Vec, owner: PlayerId, from?: Vec) => void;
   grounded: (p: PlayerState) => boolean;
 }
 
@@ -48,18 +48,18 @@ export class EzrealKit {
     p.castUntil = stamp;
     p.windupUntil = 0;
     p.facing = Math.atan2(aim.y - p.pos.y, aim.x - p.pos.x);
-    p.ezreal!.casting = { key, until: stamp };
+    p.ezreal!.casting = { key, until: stamp, origin, facing: p.facing };
     this.combat.schedule(spell.cast, () => {
       p.ezreal!.casting = null;
       if (p.hp <= 0 || p.castUntil !== stamp || p.airborne || p.charm) return;
       if (key === 'e') {
         const state = this.combat.state();
         if (p.rootUntil > state.time || this.combat.grounded(p)) return;
-        this.combat.effect('blink', p.pos, p.id);
+        const from = { ...p.pos };
         p.pos = bounded(towards(p.pos, aim, S.e.range));
         p.destination = null;
         p.attackMove = null;
-        this.combat.effect('blink', p.pos, p.id);
+        this.combat.effect('arcane-shift', p.pos, p.id, from);
         const enemy = state.players[1 - p.id];
         if (
           enemy.hp > 0 &&

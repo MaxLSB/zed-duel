@@ -9,6 +9,21 @@ export class EzrealEffects {
 
   spells(state: GameState, now: number, colors: string[]) {
     const c = this.c;
+    for (const p of state.players) {
+      const cast = p.ezreal?.casting;
+      if (!cast || cast.key !== 'r' || cast.until <= now || p.castUntil !== cast.until || p.hp <= 0) continue;
+      const progress = clamp(1 - (cast.until - now) / S.r.cast, 0, 1);
+      c.save();
+      // Keep the charge at the captured launch point even when Ezreal Flashes away.
+      c.translate(cast.origin.x, cast.origin.y);
+      c.rotate(cast.facing + Math.PI / 2);
+      c.strokeStyle = '#d8bd79';
+      c.lineWidth = 3 + progress * 4;
+      c.beginPath();
+      c.arc(0, -20, 75 + progress * 20, Math.PI * 1.05, Math.PI * 1.95);
+      c.stroke();
+      c.restore();
+    }
     for (const m of state.ezrealMissiles) {
       c.save();
       c.translate(m.pos.x, m.pos.y);
@@ -201,6 +216,14 @@ export class EzrealEffects {
     c.arc(-34, -7, 8, 0, Math.PI * 2);
     c.fill();
     c.shadowBlur = 0;
+    if (kit.casting?.key === 'e' && kit.casting.until > now && p.castUntil === kit.casting.until) {
+      const progress = clamp(1 - (kit.casting.until - now) / S.e.cast, 0, 1);
+      c.strokeStyle = '#b2edf0';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(-34, -7, 10 + progress * 13, -now * 10, -now * 10 + Math.PI * 1.5);
+      c.stroke();
+    }
     // Face, angular blond fringe and goggles resting above the eyes.
     shape(
       [
@@ -251,14 +274,6 @@ export class EzrealEffects {
     for (let i = 0; i < (kit.stacksUntil > now ? kit.stacks : 0); i++) {
       c.beginPath();
       c.arc(0, 0, 68, 0.3 + i * 0.56, 0.68 + i * 0.56);
-      c.stroke();
-    }
-    if (kit.casting?.key === 'r' && kit.casting.until > now && p.castUntil === kit.casting.until) {
-      const progress = clamp(1 - (kit.casting.until - now) / S.r.cast, 0, 1);
-      c.strokeStyle = '#d8bd79';
-      c.lineWidth = 3 + progress * 4;
-      c.beginPath();
-      c.arc(0, -20, 75 + progress * 20, Math.PI * 1.05, Math.PI * 1.95);
       c.stroke();
     }
     c.restore();

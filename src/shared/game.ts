@@ -56,7 +56,7 @@ export class Game {
     state: () => this.state,
     schedule: (delay, run) => this.schedule(delay, run),
     damage: (owner, target, raw, type) => this.damage(owner, target, raw, type),
-    effect: (kind, pos, owner) => this.effect(kind, pos, owner),
+    effect: (kind, pos, owner, from) => this.effect(kind, pos, owner, undefined, from),
     grounded: (p) => this.singed.grounded(p),
   });
 
@@ -435,7 +435,10 @@ export class Game {
         key === 'd' ? 0 : p.castUntil,
       );
     }
-    if (p.ezreal) return Math.max(now, p.untargetableUntil, p.cooldowns[key], key === 'd' ? 0 : p.castUntil);
+    if (p.ezreal) {
+      // Flash stays immediate throughout Trueshot Barrage's windup and does not cancel its cast.
+      return Math.max(now, p.untargetableUntil, p.cooldowns[key], key === 'd' ? 0 : p.castUntil);
+    }
     if (p.ahri) {
       if (p.ahri.dash && key !== 'w') return null;
       const cooldown =
@@ -553,11 +556,11 @@ export class Game {
     if (key === 'e') this.slash(p);
     if (key === 'r') this.ultimate(p, enemy);
     if (key === 'd') {
-      this.effect('blink', p.pos, p.id);
+      const from = { ...p.pos };
       p.pos = bounded(towards(p.pos, point, SPELLS.d.range));
       p.destination = null;
       p.windupUntil = 0;
-      this.effect('blink', p.pos, p.id);
+      this.effect('flash', p.pos, p.id, undefined, from);
       // Flash ends Sweeping Blade and carries its queued circular Q to the blink destination.
       this.yasuo.finishDash(p);
     }

@@ -30,7 +30,7 @@ No items means zero AP and zero bonus AD. Stat growth is part of base AD. Q ther
 
 ## Presentation and transport
 
-Original canvas geometry gives Ezreal blond hair, goggles, an explorer's jacket and a brass gauntlet. Cyan bolts, a gold Flux ring and a wide ultimate crescent distinguish his abilities. The passive HUD shows `0/5` through `5/5`; small body arcs and a shrinking bar show stacks and duration. Ultimate windup and Flux detonation have separate feedback. No external art, audio or runtime dependency was added.
+Original canvas geometry gives Ezreal blond hair, goggles, an explorer's jacket and a brass gauntlet. Cyan bolts, a gold Flux ring and a wide ultimate crescent distinguish his abilities. The passive HUD shows `0/5` through `5/5`; small body arcs and a shrinking bar show stacks and duration. Ultimate windup stays at the initial launch point when Flash is used during the cast. Arcane Shift has a small gauntlet charge and cyan rune pulses at departure and arrival; Flash uses distinct gold starbursts shared by all champions. Both animations use snapshot timestamps and play in killcam. Flux detonation has separate feedback. No external art, audio or runtime dependency was added.
 
 The champion allowlist feeds both Node and Cloudflare guest validation. Deploy the updated relay before publishing the frontend; the existing `signal:check` deployment gate now checks Ezreal automatically. Both browsers must reload after deployment. Older snapshots without the Ezreal missile array are rejected by the existing incompatible-host UI.
 

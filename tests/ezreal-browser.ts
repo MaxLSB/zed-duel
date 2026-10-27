@@ -44,7 +44,10 @@ export function ezrealBrowserTests(base: string) {
     await expect(page.locator('[data-spell=passive] .cooldown')).toHaveText('3/5');
     await aim(page, 1450, 700);
     await page.keyboard.press('r');
-    await page.waitForTimeout(450);
+    await page.waitForTimeout(150);
+    await aim(page, 1050, 65);
+    await page.keyboard.press('d');
+    await expect(page.locator('[data-spell=d]')).toHaveClass(/on-cooldown/);
     await page.screenshot({ path: `test-results/ezreal-${base === '/' ? 'node' : 'pages'}-barrage.png` });
     await expect(page.locator('[data-spell=passive] .cooldown')).toHaveText('4/5');
     await expect(page.locator('[data-spell=passive]')).toHaveClass(/ability-active/);

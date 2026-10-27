@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { Game } from '../src/shared/game';
 import { STEP } from '../src/shared/balance';
 import { EZREAL_PASSIVE as P, EZREAL_SPELLS as S, EZREAL_STATS } from '../src/shared/ezreal-balance';
-import { attackSpeed, championStats } from '../src/shared/champions';
+import { CHAMPIONS, attackSpeed, championStats } from '../src/shared/champions';
 import { parseMessage } from '../src/shared/protocol';
 import { validRelayData } from '../src/shared/signaling';
 import { HostedMatch } from '../src/shared/hosted-match';
@@ -225,6 +225,79 @@ test('Flash during casts preserves R origin, but Q launches from the new positio
       assert.ok(missile.velocity.y > 0);
     }
     assert.equal(p.pos.y, 300);
+  }
+});
+
+test('Flash is immediate at every stage of R and preserves its launch time, position and direction', () => {
+  for (const delay of [0, 0.45, 0.9]) {
+    const game = duel(),
+      [p, enemy] = game.state.players;
+    const origin = { ...p.pos };
+    assert.ok(cast(game, 'r'));
+    const stamp = p.castUntil;
+    advance(game, delay);
+    assert.ok(cast(game, 'd', 0, { x: 700, y: 100 }));
+    assert.equal(p.pos.y, 300);
+    assert.equal(p.castUntil, stamp);
+    assert.deepEqual(p.ezreal!.casting!.origin, origin);
+    assert.equal(p.ezreal!.casting!.facing, 0);
+    assert.equal(game.state.ezrealMissiles.length, 0);
+    const blink = game.state.effects.find((e) => e.kind === 'flash')!;
+    assert.equal(blink.at, game.state.time);
+    assert.deepEqual(blink.from, origin);
+    assert.deepEqual(blink.pos, p.pos);
+    while (game.state.time < stamp) game.step();
+    assert.ok(game.state.time - stamp < STEP + 0.00001);
+    const missile = game.state.ezrealMissiles[0];
+    assert.ok(missile);
+    assert.equal(missile.kind, 'r');
+    near(missile.pos.y, origin.y);
+    assert.deepEqual(missile.velocity, { x: 1, y: 0 });
+    assert.equal(p.ezreal!.casting, null);
+    advance(game, 0.5);
+    near(p.stats.damageDealt, magic(S.r.damage));
+    assert.ok(enemy.hp < championStats(enemy.champion).hp);
+  }
+});
+
+test('all champions emit the same Flash event with immutable departure and arrival points', () => {
+  for (const champion of CHAMPIONS) {
+    const game = new Game(null, [champion, 'zed']);
+    game.start(0);
+    const p = game.state.players[0],
+      from = { ...p.pos };
+    assert.ok(cast(game, 'd', 0, { x: 900, y: 700 }));
+    const effect = game.state.effects.find((e) => e.kind === 'flash')!;
+    assert.ok(effect, champion);
+    assert.deepEqual(effect.from, from);
+    assert.deepEqual(effect.pos, p.pos);
+    assert.equal(game.state.effects.filter((e) => e.kind === 'blink').length, 0);
+    const snapshot = structuredClone(effect);
+    p.pos.x += 100;
+    assert.deepEqual(effect, snapshot);
+    game.start(0);
+    assert.equal(game.state.effects.length, 0);
+  }
+});
+
+test('Arcane Shift emits its own endpoint animation only when the blink succeeds', () => {
+  for (const interrupted of [false, true]) {
+    const game = duel(),
+      p = game.state.players[0],
+      from = { ...p.pos };
+    cast(game, 'e', 0, { x: 950, y: 400 });
+    advance(game, 0.1);
+    assert.equal(game.state.effects.length, 0);
+    if (interrupted) p.rootUntil = 10;
+    advance(game, 0.2);
+    const shift = game.state.effects.find((e) => e.kind === 'arcane-shift');
+    assert.equal(!!shift, !interrupted);
+    if (shift) {
+      assert.deepEqual(shift.from, from);
+      assert.deepEqual(shift.pos, p.pos);
+      assert.ok(shift.at >= S.e.cast && shift.at < S.e.cast + STEP + 0.00001);
+    }
+    assert.equal(game.state.effects.filter((e) => e.kind === 'flash' || e.kind === 'blink').length, 0);
   }
 });
 
